@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Paperclip, Camera } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface Question {
@@ -18,12 +17,15 @@ interface Question {
   title: string;
   options?: string[];
   required: boolean;
+  allowAttachments?: boolean;
 }
 
 const FormViewer = () => {
   const { id } = useParams();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [attachments, setAttachments] = useState<Record<string, File | null>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mock form data - in real app, fetch from database
   const form = {
@@ -36,6 +38,7 @@ const FormViewer = () => {
         type: 'text' as const,
         title: 'Qual é o seu nome?',
         required: true,
+        allowAttachments: true,
       },
       {
         id: '2',
@@ -43,6 +46,7 @@ const FormViewer = () => {
         title: 'Como você avalia nosso atendimento?',
         options: ['Excelente', 'Bom', 'Regular', 'Ruim', 'Péssimo'],
         required: true,
+        allowAttachments: false,
       },
       {
         id: '3',
@@ -50,6 +54,7 @@ const FormViewer = () => {
         title: 'Quais serviços você utiliza? (múltiplas opções)',
         options: ['Suporte Técnico', 'Vendas', 'Consultoria', 'Treinamento'],
         required: false,
+        allowAttachments: true,
       },
       {
         id: '4',
@@ -57,12 +62,14 @@ const FormViewer = () => {
         title: 'Com que frequência você usa nossos serviços?',
         options: ['Diariamente', 'Semanalmente', 'Mensalmente', 'Raramente'],
         required: true,
+        allowAttachments: false,
       },
       {
         id: '5',
         type: 'textarea' as const,
         title: 'Deixe seus comentários e sugestões:',
         required: false,
+        allowAttachments: false,
       },
     ] as Question[],
   };
@@ -72,6 +79,26 @@ const FormViewer = () => {
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleFileChange = (questionId: string, file: File | null) => {
+    setAttachments(prev => ({ ...prev, [questionId]: file }));
+  };
+
+  const handleCapturePhoto = (questionId: string) => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+      fileInputRef.current.onchange = (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        if (target.files && target.files.length > 0) {
+          handleFileChange(questionId, target.files[0]);
+          toast({
+            title: "Foto capturada",
+            description: "A foto foi anexada à sua resposta.",
+          });
+        }
+      };
+    }
   };
 
   const goToQuestion = (index: number) => {
@@ -104,6 +131,7 @@ const FormViewer = () => {
 
     // Save to database
     console.log('Submitting answers:', answers);
+    console.log('Submitting attachments:', attachments);
     toast({
       title: "Sucesso!",
       description: "Suas respostas foram enviadas com sucesso.",
@@ -112,90 +140,173 @@ const FormViewer = () => {
 
   const renderQuestion = (question: Question) => {
     const value = answers[question.id];
+    const attachment = attachments[question.id];
 
-    switch (question.type) {
-      case 'text':
-        return (
-          <Input
-            value={value || ''}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder="Digite sua resposta"
-            className="text-lg"
-          />
-        );
+    return (
+      <div className="space-y-6">
+        {/* Main Question Input */}
+        <div className="space-y-4">
+          {(() => {
+            switch (question.type) {
+              case 'text':
+                return (
+                  <Input
+                    value={value || ''}
+                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                    placeholder="Digite sua resposta"
+                    className="text-lg"
+                  />
+                );
 
-      case 'textarea':
-        return (
-          <Textarea
-            value={value || ''}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder="Digite sua resposta"
-            rows={4}
-            className="text-lg"
-          />
-        );
+              case 'textarea':
+                return (
+                  <Textarea
+                    value={value || ''}
+                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                    placeholder="Digite sua resposta"
+                    rows={4}
+                    className="text-lg"
+                  />
+                );
 
-      case 'radio':
-        return (
-          <RadioGroup
-            value={value || ''}
-            onValueChange={(val) => handleAnswerChange(question.id, val)}
-          >
-            {question.options?.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`${question.id}-${index}`} />
-                <Label htmlFor={`${question.id}-${index}`} className="text-lg">
-                  {option}
-                </Label>
+              case 'radio':
+                return (
+                  <RadioGroup
+                    value={value || ''}
+                    onValueChange={(val) => handleAnswerChange(question.id, val)}
+                  >
+                    {question.options?.map((option, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <RadioGroupItem value={option} id={`${question.id}-${index}`} />
+                        <Label htmlFor={`${question.id}-${index}`} className="text-lg">
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                );
+
+              case 'checkbox':
+                return (
+                  <div className="space-y-3">
+                    {question.options?.map((option, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${question.id}-${index}`}
+                          checked={value?.includes(option) || false}
+                          onCheckedChange={(checked) => {
+                            const currentValues = value || [];
+                            if (checked) {
+                              handleAnswerChange(question.id, [...currentValues, option]);
+                            } else {
+                              handleAnswerChange(question.id, currentValues.filter((v: string) => v !== option));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`${question.id}-${index}`} className="text-lg">
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                );
+
+              case 'select':
+                return (
+                  <Select value={value || ''} onValueChange={(val) => handleAnswerChange(question.id, val)}>
+                    <SelectTrigger className="text-lg">
+                      <SelectValue placeholder="Selecione uma opção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {question.options?.map((option, index) => (
+                        <SelectItem key={index} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+
+              default:
+                return null;
+            }
+          })()}
+        </div>
+
+        {/* Attachment Section */}
+        {question.allowAttachments && (
+          <div className="border-t pt-4 mt-4">
+            <div className="flex flex-col space-y-4">
+              <h3 className="text-sm font-medium text-slate-700">Anexos</h3>
+              
+              <div className="flex flex-wrap gap-4">
+                <div>
+                  <input
+                    type="file"
+                    id={`file-${question.id}`}
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleFileChange(question.id, e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById(`file-${question.id}`)?.click()}
+                    className="flex items-center"
+                  >
+                    <Paperclip className="w-4 h-4 mr-2" />
+                    Anexar arquivo
+                  </Button>
+                </div>
+                
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    ref={fileInputRef}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCapturePhoto(question.id)}
+                    className="flex items-center"
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Capturar foto
+                  </Button>
+                </div>
               </div>
-            ))}
-          </RadioGroup>
-        );
 
-      case 'checkbox':
-        return (
-          <div className="space-y-3">
-            {question.options?.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`${question.id}-${index}`}
-                  checked={value?.includes(option) || false}
-                  onCheckedChange={(checked) => {
-                    const currentValues = value || [];
-                    if (checked) {
-                      handleAnswerChange(question.id, [...currentValues, option]);
-                    } else {
-                      handleAnswerChange(question.id, currentValues.filter((v: string) => v !== option));
-                    }
-                  }}
-                />
-                <Label htmlFor={`${question.id}-${index}`} className="text-lg">
-                  {option}
-                </Label>
-              </div>
-            ))}
+              {attachment && (
+                <div className="mt-2">
+                  <div className="bg-slate-50 border rounded p-2 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Paperclip className="w-4 h-4 text-slate-500 mr-2" />
+                      <span className="text-sm truncate max-w-[200px]">{attachment.name}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFileChange(question.id, null)}
+                      className="text-red-500 h-auto py-1 px-2"
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        );
-
-      case 'select':
-        return (
-          <Select value={value || ''} onValueChange={(val) => handleAnswerChange(question.id, val)}>
-            <SelectTrigger className="text-lg">
-              <SelectValue placeholder="Selecione uma opção" />
-            </SelectTrigger>
-            <SelectContent>
-              {question.options?.map((option, index) => (
-                <SelectItem key={index} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-
-      default:
-        return null;
-    }
+        )}
+      </div>
+    );
   };
 
   return (

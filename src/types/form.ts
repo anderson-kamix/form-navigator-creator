@@ -5,6 +5,7 @@ export interface Question {
   title: string;
   options?: string[];
   required: boolean;
+  allowAttachments?: boolean;
 }
 
 export interface FormSection {

@@ -57,6 +57,7 @@ export const useFormBuilder = () => {
       type: 'text',
       title: '',
       required: false,
+      allowAttachments: false,
     };
     
     setSections(sections.map(section => {

@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Trash2, Paperclip, Camera } from 'lucide-react';
 import { Question } from '@/types/form';
 import QuestionTypeSelector from './QuestionTypeSelector';
+import { Switch } from '@/components/ui/switch';
 
 interface QuestionItemProps {
   question: Question;
@@ -62,6 +63,32 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, index, sectionId,
               />
             </div>
           )}
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={`attachment-${question.id}`}
+                checked={question.allowAttachments || false}
+                onCheckedChange={(checked) => 
+                  onUpdate(sectionId, question.id, { allowAttachments: checked })
+                }
+              />
+              <Label htmlFor={`attachment-${question.id}`}>Permitir anexos</Label>
+            </div>
+            
+            {question.allowAttachments && (
+              <div className="flex items-center space-x-2 text-slate-600">
+                <div className="flex items-center">
+                  <Paperclip className="w-4 h-4 mr-1" />
+                  <span className="text-sm">Arquivo</span>
+                </div>
+                <div className="flex items-center">
+                  <Camera className="w-4 h-4 mr-1" />
+                  <span className="text-sm">Foto</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <Button
