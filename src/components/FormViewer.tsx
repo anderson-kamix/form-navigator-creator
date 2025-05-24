@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,82 +12,59 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronLeft, ChevronRight, Check, Paperclip, Camera, CheckCircle2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Form, FormSection, Question } from '@/types/form';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface Question {
-  id: string;
-  type: 'text' | 'textarea' | 'select' | 'radio' | 'checkbox';
-  title: string;
-  options?: string[];
-  required: boolean;
-  allowAttachments?: boolean;
+interface Response {
+  formId: string;
+  answers: Record<string, any>;
+  attachments: Record<string, string>;
+  submittedAt: Date;
 }
 
 const FormViewer = () => {
   const { id } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState<Form | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [attachments, setAttachments] = useState<Record<string, File | null>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load the form data from localStorage
+  useEffect(() => {
+    if (id) {
+      const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
+      const formData = existingForms.find((f: Form) => f.id === id);
+      
+      if (formData) {
+        setForm(formData);
+        
+        // Flatten all questions from all sections into a single array
+        const questions = formData.sections.flatMap(section => 
+          section.questions.map(q => ({...q, sectionId: section.id}))
+        );
+        setAllQuestions(questions);
+      }
+      
+      setLoading(false);
+    }
+  }, [id]);
+
   // Check if the form is viewed embedded (standalone)
-  React.useEffect(() => {
+  useEffect(() => {
     // Check if the URL has an embedded query param or if the referrer is different
     const urlParams = new URLSearchParams(window.location.search);
     const embedded = urlParams.get('embedded') === 'true';
     setIsEmbedded(embedded || !window.location.pathname.includes('/forms/'));
   }, []);
 
-  // Mock form data - in real app, fetch from database
-  const form = {
-    id: id,
-    title: 'Pesquisa de Satisfação',
-    description: 'Ajude-nos a melhorar nossos serviços respondendo algumas perguntas.',
-    questions: [
-      {
-        id: '1',
-        type: 'text' as const,
-        title: 'Qual é o seu nome?',
-        required: true,
-        allowAttachments: true,
-      },
-      {
-        id: '2',
-        type: 'radio' as const,
-        title: 'Como você avalia nosso atendimento?',
-        options: ['Excelente', 'Bom', 'Regular', 'Ruim', 'Péssimo'],
-        required: true,
-        allowAttachments: false,
-      },
-      {
-        id: '3',
-        type: 'checkbox' as const,
-        title: 'Quais serviços você utiliza? (múltiplas opções)',
-        options: ['Suporte Técnico', 'Vendas', 'Consultoria', 'Treinamento'],
-        required: false,
-        allowAttachments: true,
-      },
-      {
-        id: '4',
-        type: 'select' as const,
-        title: 'Com que frequência você usa nossos serviços?',
-        options: ['Diariamente', 'Semanalmente', 'Mensalmente', 'Raramente'],
-        required: true,
-        allowAttachments: false,
-      },
-      {
-        id: '5',
-        type: 'textarea' as const,
-        title: 'Deixe seus comentários e sugestões:',
-        required: false,
-        allowAttachments: false,
-      },
-    ] as Question[],
-  };
-
-  const totalQuestions = form.questions.length;
-  const progress = ((currentQuestion + 1) / totalQuestions) * 100;
+  const totalQuestions = allQuestions.length;
+  const progress = totalQuestions > 0 ? ((currentQuestion + 1) / totalQuestions) * 100 : 0;
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
@@ -131,7 +108,16 @@ const FormViewer = () => {
 
   const submitForm = () => {
     // Validate required fields
-    const currentQ = form.questions[currentQuestion];
+    if (totalQuestions === 0) {
+      toast({
+        title: "Erro",
+        description: "Este formulário não contém perguntas.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const currentQ = allQuestions[currentQuestion];
     if (currentQ.required && !answers[currentQ.id]) {
       toast({
         title: "Campo obrigatório",
@@ -141,9 +127,23 @@ const FormViewer = () => {
       return;
     }
 
-    // Save to database
-    console.log('Submitting answers:', answers);
-    console.log('Submitting attachments:', attachments);
+    // Save response to localStorage
+    if (form) {
+      const newResponse: Response = {
+        formId: form.id,
+        answers: answers,
+        attachments: Object.fromEntries(
+          Object.entries(attachments)
+            .filter(([_, file]) => file !== null)
+            .map(([key, file]) => [key, (file as File).name])
+        ),
+        submittedAt: new Date()
+      };
+
+      // Get existing responses
+      const existingResponses = JSON.parse(localStorage.getItem('form_responses') || '[]');
+      localStorage.setItem('form_responses', JSON.stringify([...existingResponses, newResponse]));
+    }
     
     // Show success screen
     setIsSubmitted(true);
@@ -320,6 +320,33 @@ const FormViewer = () => {
     );
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="max-w-4xl mx-auto">
+          <Skeleton className="h-12 w-64 mb-4" />
+          <Skeleton className="h-6 w-full max-w-md mb-8" />
+          <Skeleton className="h-72 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // If form not found
+  if (!form) {
+    return (
+      <div className="p-8">
+        <Alert variant="destructive" className="max-w-2xl mx-auto">
+          <AlertTitle>Formulário não encontrado</AlertTitle>
+          <AlertDescription>
+            O formulário que você está tentando acessar não existe ou foi removido.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   // Success Screen Component
   const SuccessScreen = () => (
     <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -381,47 +408,58 @@ const FormViewer = () => {
             </div>
 
             {/* Current Question */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium text-blue-600">
-                  Questão {currentQuestion + 1} de {totalQuestions}
-                </span>
-                {form.questions[currentQuestion].required && (
-                  <span className="text-sm text-red-600">* Obrigatório</span>
-                )}
-              </div>
-              <h2 className="text-2xl font-semibold text-slate-800 mb-6">
-                {form.questions[currentQuestion].title}
-              </h2>
-            </div>
+            {allQuestions.length > 0 ? (
+              <>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-medium text-blue-600">
+                      Questão {currentQuestion + 1} de {totalQuestions}
+                    </span>
+                    {allQuestions[currentQuestion]?.required && (
+                      <span className="text-sm text-red-600">* Obrigatório</span>
+                    )}
+                  </div>
+                  <h2 className="text-2xl font-semibold text-slate-800 mb-6">
+                    {allQuestions[currentQuestion]?.title}
+                  </h2>
+                </div>
 
-            <div className="mb-8">
-              {renderQuestion(form.questions[currentQuestion])}
-            </div>
+                <div className="mb-8">
+                  {allQuestions[currentQuestion] && renderQuestion(allQuestions[currentQuestion])}
+                </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={prevQuestion}
-                disabled={currentQuestion === 0}
-              >
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Anterior
-              </Button>
+                {/* Navigation Buttons */}
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={prevQuestion}
+                    disabled={currentQuestion === 0}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Anterior
+                  </Button>
 
-              {currentQuestion === totalQuestions - 1 ? (
-                <Button onClick={submitForm} className="bg-green-600 hover:bg-green-700">
-                  <Check className="w-4 h-4 mr-2" />
-                  Finalizar
-                </Button>
-              ) : (
-                <Button onClick={nextQuestion}>
-                  Próxima
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              )}
-            </div>
+                  {currentQuestion === totalQuestions - 1 ? (
+                    <Button onClick={submitForm} className="bg-green-600 hover:bg-green-700">
+                      <Check className="w-4 h-4 mr-2" />
+                      Finalizar
+                    </Button>
+                  ) : (
+                    <Button onClick={nextQuestion}>
+                      Próxima
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <Alert className="mt-4">
+                <AlertTitle>Formulário vazio</AlertTitle>
+                <AlertDescription>
+                  Este formulário não possui perguntas. Por favor, edite o formulário para adicionar questões.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         </Card>
       </div>
@@ -451,7 +489,7 @@ const FormViewer = () => {
               <Card className="p-4 sticky top-8">
                 <h3 className="font-semibold text-slate-800 mb-4">Navegação</h3>
                 <div className="space-y-2">
-                  {form.questions.map((question, index) => (
+                  {allQuestions.map((question, index) => (
                     <button
                       key={question.id}
                       onClick={() => goToQuestion(index)}
@@ -497,47 +535,58 @@ const FormViewer = () => {
             {/* Current Question */}
             <div className="lg:col-span-3">
               <Card className="p-8">
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-medium text-blue-600">
-                      Questão {currentQuestion + 1} de {totalQuestions}
-                    </span>
-                    {form.questions[currentQuestion].required && (
-                      <span className="text-sm text-red-600">* Obrigatório</span>
-                    )}
-                  </div>
-                  <h2 className="text-2xl font-semibold text-slate-800 mb-6">
-                    {form.questions[currentQuestion].title}
-                  </h2>
-                </div>
+                {allQuestions.length > 0 ? (
+                  <>
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-sm font-medium text-blue-600">
+                          Questão {currentQuestion + 1} de {totalQuestions}
+                        </span>
+                        {allQuestions[currentQuestion]?.required && (
+                          <span className="text-sm text-red-600">* Obrigatório</span>
+                        )}
+                      </div>
+                      <h2 className="text-2xl font-semibold text-slate-800 mb-6">
+                        {allQuestions[currentQuestion]?.title}
+                      </h2>
+                    </div>
 
-                <div className="mb-8">
-                  {renderQuestion(form.questions[currentQuestion])}
-                </div>
+                    <div className="mb-8">
+                      {allQuestions[currentQuestion] && renderQuestion(allQuestions[currentQuestion])}
+                    </div>
 
-                {/* Navigation Buttons */}
-                <div className="flex justify-between">
-                  <Button
-                    variant="outline"
-                    onClick={prevQuestion}
-                    disabled={currentQuestion === 0}
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Anterior
-                  </Button>
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between">
+                      <Button
+                        variant="outline"
+                        onClick={prevQuestion}
+                        disabled={currentQuestion === 0}
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-2" />
+                        Anterior
+                      </Button>
 
-                  {currentQuestion === totalQuestions - 1 ? (
-                    <Button onClick={submitForm} className="bg-green-600 hover:bg-green-700">
-                      <Check className="w-4 h-4 mr-2" />
-                      Finalizar
-                    </Button>
-                  ) : (
-                    <Button onClick={nextQuestion}>
-                      Próxima
-                      <ChevronRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  )}
-                </div>
+                      {currentQuestion === totalQuestions - 1 ? (
+                        <Button onClick={submitForm} className="bg-green-600 hover:bg-green-700">
+                          <Check className="w-4 h-4 mr-2" />
+                          Finalizar
+                        </Button>
+                      ) : (
+                        <Button onClick={nextQuestion}>
+                          Próxima
+                          <ChevronRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <Alert className="mt-4">
+                    <AlertTitle>Formulário vazio</AlertTitle>
+                    <AlertDescription>
+                      Este formulário não possui perguntas. Por favor, edite o formulário para adicionar questões.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </Card>
             </div>
           </div>
