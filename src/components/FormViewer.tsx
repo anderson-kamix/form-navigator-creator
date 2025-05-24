@@ -34,7 +34,7 @@ const FormViewer = () => {
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [showCover, setShowCover] = useState(true);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Load the form data from localStorage
   useEffect(() => {
@@ -83,18 +83,32 @@ const FormViewer = () => {
   };
 
   const handleCapturePhoto = (questionId: string) => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-      fileInputRef.current.onchange = (e: Event) => {
-        const target = e.target as HTMLInputElement;
-        if (target.files && target.files.length > 0) {
-          handleFileChange(questionId, target.files[0]);
-          toast({
-            title: "Foto capturada",
-            description: "A foto foi anexada à sua resposta.",
-          });
-        }
-      };
+    if (cameraInputRef.current) {
+      // Set the current question ID as a data attribute to keep track of which question's photo we're capturing
+      cameraInputRef.current.dataset.questionId = questionId;
+      
+      // Configure for camera capture and trigger camera
+      cameraInputRef.current.accept = "image/*";
+      cameraInputRef.current.capture = "environment";
+      cameraInputRef.current.click();
+    }
+  };
+
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const target = e.target;
+    const questionId = target.dataset.questionId || '';
+    
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      handleFileChange(questionId, file);
+      
+      toast({
+        title: "Foto capturada",
+        description: "A foto foi anexada à sua resposta.",
+      });
+      
+      // Reset the input value so the same file can be selected again if needed
+      target.value = '';
     }
   };
 
@@ -339,13 +353,6 @@ const FormViewer = () => {
                 </div>
                 
                 <div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    ref={fileInputRef}
-                    className="hidden"
-                  />
                   <Button
                     type="button"
                     variant="outline"
@@ -484,6 +491,18 @@ const FormViewer = () => {
     </div>
   );
 
+  // Add a shared camera input that will be used across all questions
+  const sharedCameraInput = (
+    <input
+      type="file"
+      accept="image/*"
+      capture="environment"
+      ref={cameraInputRef}
+      className="hidden"
+      onChange={handleCameraCapture}
+    />
+  );
+
   // Embedded version with simplified layout
   if (isEmbedded) {
     if (isSubmitted) {
@@ -502,6 +521,7 @@ const FormViewer = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-16 px-4 sm:px-6 lg:px-8 flex justify-center">
         <Card className="w-full max-w-2xl shadow-lg border-0">
           <div className="p-8">
+            {sharedCameraInput}
             {showCover ? (
               <CoverScreen />
             ) : (
@@ -598,6 +618,7 @@ const FormViewer = () => {
         </div>
       ) : (
         <div className="max-w-4xl mx-auto">
+          {sharedCameraInput}
           {showCover ? (
             <Card className="p-8">
               <CoverScreen />
