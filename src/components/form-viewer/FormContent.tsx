@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Question } from '@/types/form';
@@ -67,8 +68,8 @@ export const FormContent: React.FC<FormContentProps> = ({
     <>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">{description || title}</h1>
-        {description && <p className="text-slate-600">{title}</p>}
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">{title}</h1>
+        {description && <p className="text-slate-600">{description}</p>}
       </div>
 
       {isDesktop ? (
