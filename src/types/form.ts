@@ -1,11 +1,13 @@
 
 export interface Question {
   id: string;
-  type: 'text' | 'textarea' | 'select' | 'radio' | 'checkbox';
+  type: 'text' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'rating';
   title: string;
   options?: string[];
   required: boolean;
   allowAttachments?: boolean;
+  ratingScale?: number;
+  ratingIcon?: 'star' | 'heart' | 'thumbsUp' | 'circle' | 'square';
 }
 
 export interface FormSection {
@@ -35,4 +37,3 @@ export interface Form {
   updatedAt: Date;
   shareUrl?: string;
 }
-

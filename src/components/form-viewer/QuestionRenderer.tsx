@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Paperclip, Camera, AlertCircle, X } from 'lucide-react';
+import { Paperclip, Camera, AlertCircle, X, Star, Heart, ThumbsUp, Circle, Square } from 'lucide-react';
 import { Question } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 
@@ -87,6 +87,51 @@ export const QuestionRenderer = ({
       </RadioGroup>
     );
   };
+  
+  const renderRatingQuestion = () => {
+    const ratingScale = question.ratingScale || 5;
+    const ratingValue = typeof value === 'number' ? value : 0;
+    const iconType = question.ratingIcon || 'star';
+    
+    // Map each icon type to its component
+    const IconComponent = {
+      'star': Star,
+      'heart': Heart,
+      'thumbsUp': ThumbsUp,
+      'circle': Circle,
+      'square': Square
+    }[iconType];
+
+    return (
+      <div className={`mt-4 ${hasError ? 'border-l-4 border-red-500 pl-4' : ''}`}>
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: ratingScale }).map((_, index) => {
+            const isSelected = ratingValue >= index + 1;
+            
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => onAnswerChange(index + 1)}
+                className={`p-1 rounded-md transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300`}
+                aria-label={`Classificação ${index + 1} de ${ratingScale}`}
+              >
+                <IconComponent 
+                  className={`w-8 h-8 ${isSelected ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+                />
+              </button>
+            );
+          })}
+        </div>
+        
+        {ratingValue > 0 && (
+          <div className="mt-2 text-sm text-slate-600">
+            Sua classificação: {ratingValue} de {ratingScale}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -117,6 +162,9 @@ export const QuestionRenderer = ({
 
             case 'radio':
               return renderRadioOptions();
+              
+            case 'rating':
+              return renderRatingQuestion();
 
             case 'checkbox':
               return (
