@@ -111,7 +111,10 @@ export const BottomNavigation: React.FC<{
   onPrevious: () => void;
   onNext: () => void;
   onSubmit: () => void;
-}> = ({ currentQuestion, questionsLength, onPrevious, onNext, onSubmit }) => {
+  showSubmitButton?: boolean;
+}> = ({ currentQuestion, questionsLength, onPrevious, onNext, onSubmit, showSubmitButton = false }) => {
+  const isLastQuestion = currentQuestion === questionsLength - 1;
+  
   return (
     <div className="flex justify-between">
       <Button
@@ -123,14 +126,14 @@ export const BottomNavigation: React.FC<{
         Anterior
       </Button>
 
-      {currentQuestion === questionsLength - 1 ? (
+      {showSubmitButton ? (
         <Button onClick={onSubmit} className="bg-green-600 hover:bg-green-700">
           <Check className="w-4 h-4 mr-2" />
           Finalizar
         </Button>
       ) : (
         <Button onClick={onNext}>
-          Próxima
+          {isLastQuestion ? 'Próxima seção' : 'Próxima'}
           <ChevronRight className="w-4 h-4 ml-2" />
         </Button>
       )}

@@ -4,9 +4,10 @@ import { useParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useFormViewerState, Response } from './form-viewer/useFormViewerState';
+import { useFormViewerState } from './form-viewer/useFormViewerState';
 import { CoverScreen } from './form-viewer/CoverScreen';
 import { FormContent } from './form-viewer/FormContent';
+import { SectionNavigation } from './form-viewer/SectionNavigation';
 import { SuccessScreen } from './form-viewer/SuccessScreen';
 
 const FormViewer = () => {
@@ -15,26 +16,33 @@ const FormViewer = () => {
     loading,
     form,
     currentQuestion,
+    currentSection,
     answers,
     attachments,
     isSubmitted,
     isEmbedded,
-    allQuestions,
+    currentSectionQuestions,
+    sections,
     showCover,
     validationErrors,
     cameraInputRef,
     progress,
+    overallProgress,
     totalQuestions,
+    totalSections,
     handleAnswerChange,
     handleFileChange,
     handleCapturePhoto,
     handleCameraCapture,
     goToQuestion,
+    goToSection,
     nextQuestion,
     prevQuestion,
     startForm,
     submitForm,
-    resetForm
+    resetForm,
+    isSectionComplete,
+    isSectionAccessible
   } = useFormViewerState(id);
 
   // Shared camera input that will be used across all questions
@@ -76,6 +84,9 @@ const FormViewer = () => {
     );
   }
 
+  // Current section
+  const currentSectionData = sections[currentSection];
+
   // Embedded version with simplified layout
   if (isEmbedded) {
     if (isSubmitted) {
@@ -103,23 +114,39 @@ const FormViewer = () => {
                 onStart={startForm}
               />
             ) : (
-              <FormContent 
-                title={form.title}
-                description={form.description}
-                questions={allQuestions}
-                currentQuestion={currentQuestion}
-                answers={answers}
-                attachments={attachments}
-                validationErrors={validationErrors}
-                progress={progress}
-                handleAnswerChange={handleAnswerChange}
-                handleFileChange={handleFileChange}
-                handleCapturePhoto={handleCapturePhoto}
-                goToQuestion={goToQuestion}
-                nextQuestion={nextQuestion}
-                prevQuestion={prevQuestion}
-                submitForm={submitForm}
-              />
+              <>
+                {/* Section Navigation */}
+                {sections.length > 1 && (
+                  <SectionNavigation 
+                    sections={sections}
+                    currentSection={currentSection}
+                    isSectionComplete={isSectionComplete}
+                    isSectionAccessible={isSectionAccessible}
+                    onSelectSection={goToSection}
+                    overallProgress={overallProgress}
+                  />
+                )}
+                
+                {/* Form Content */}
+                <FormContent 
+                  title={currentSectionData?.title || form.title}
+                  description={currentSectionData?.description || form.description}
+                  questions={currentSectionQuestions}
+                  currentQuestion={currentQuestion}
+                  answers={answers}
+                  attachments={attachments}
+                  validationErrors={validationErrors}
+                  progress={progress}
+                  handleAnswerChange={handleAnswerChange}
+                  handleFileChange={handleFileChange}
+                  handleCapturePhoto={handleCapturePhoto}
+                  goToQuestion={goToQuestion}
+                  nextQuestion={nextQuestion}
+                  prevQuestion={prevQuestion}
+                  submitForm={submitForm}
+                  isLastSection={currentSection === totalSections - 1}
+                />
+              </>
             )}
           </div>
         </Card>
@@ -150,10 +177,23 @@ const FormViewer = () => {
             </Card>
           ) : (
             <Card className="p-8">
+              {/* Section Navigation */}
+              {sections.length > 1 && (
+                <SectionNavigation 
+                  sections={sections}
+                  currentSection={currentSection}
+                  isSectionComplete={isSectionComplete}
+                  isSectionAccessible={isSectionAccessible}
+                  onSelectSection={goToSection}
+                  overallProgress={overallProgress}
+                />
+              )}
+              
+              {/* Form Content */}
               <FormContent 
-                title={form.title}
-                description={form.description}
-                questions={allQuestions}
+                title={currentSectionData?.title || form.title}
+                description={currentSectionData?.description || form.description}
+                questions={currentSectionQuestions}
                 currentQuestion={currentQuestion}
                 answers={answers}
                 attachments={attachments}
@@ -167,6 +207,7 @@ const FormViewer = () => {
                 prevQuestion={prevQuestion}
                 submitForm={submitForm}
                 isDesktop={true}
+                isLastSection={currentSection === totalSections - 1}
               />
             </Card>
           )}

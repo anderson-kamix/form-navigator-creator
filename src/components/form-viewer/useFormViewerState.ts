@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Form, Question } from '@/types/form';
+import { Form, Question, FormSection } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { FormResponse } from '@/types/response';
@@ -21,6 +21,8 @@ export const useFormViewerState = (formId: string | undefined) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [sections, setSections] = useState<FormSection[]>([]);
+  const [currentSectionQuestions, setCurrentSectionQuestions] = useState<Question[]>([]);
   const [showCover, setShowCover] = useState(true);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -34,7 +36,15 @@ export const useFormViewerState = (formId: string | undefined) => {
       if (formData) {
         setForm(formData);
         
-        // Flatten all questions from all sections into a single array
+        // Set sections from form data
+        setSections(formData.sections);
+        
+        // Initialize with first section's questions
+        if (formData.sections.length > 0) {
+          setCurrentSectionQuestions(formData.sections[0].questions);
+        }
+        
+        // Flatten all questions from all sections into a single array (for reference)
         const questions = formData.sections.flatMap(section => 
           section.questions.map(q => ({...q, sectionId: section.id}))
         );
@@ -45,6 +55,15 @@ export const useFormViewerState = (formId: string | undefined) => {
     }
   }, [formId]);
 
+  // Update current section questions when section changes
+  useEffect(() => {
+    if (sections.length > 0 && currentSection < sections.length) {
+      setCurrentSectionQuestions(sections[currentSection].questions);
+      // Reset current question index when changing sections
+      setCurrentQuestion(0);
+    }
+  }, [currentSection, sections]);
+
   // Check if the form is viewed embedded (standalone)
   useEffect(() => {
     // Check if the URL has an embedded query param or if the referrer is different
@@ -53,8 +72,36 @@ export const useFormViewerState = (formId: string | undefined) => {
     setIsEmbedded(embedded || !window.location.pathname.includes('/forms/'));
   }, []);
 
-  const totalQuestions = allQuestions.length;
+  const totalQuestions = currentSectionQuestions.length;
+  const totalSections = sections.length;
+  
+  // Calculate progress within the current section
   const progress = totalQuestions > 0 ? ((currentQuestion + 1) / totalQuestions) * 100 : 0;
+  
+  // Calculate overall progress
+  const calculateOverallProgress = (): number => {
+    if (sections.length === 0) return 0;
+    
+    // Count total questions and answered questions
+    const totalQuestionsAll = allQuestions.length;
+    if (totalQuestionsAll === 0) return 0;
+    
+    // Calculate completed sections (all prior sections)
+    const completedSectionsQuestions = sections
+      .slice(0, currentSection)
+      .flatMap(s => s.questions)
+      .length;
+    
+    // Add current section progress
+    const currentSectionProgress = 
+      sections[currentSection]?.questions.length > 0 
+        ? (currentQuestion / sections[currentSection].questions.length) * sections[currentSection].questions.length
+        : 0;
+    
+    return ((completedSectionsQuestions + currentSectionProgress) / totalQuestionsAll) * 100;
+  };
+
+  const overallProgress = calculateOverallProgress();
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => {
@@ -102,13 +149,15 @@ export const useFormViewerState = (formId: string | undefined) => {
   };
 
   const goToQuestion = (index: number) => {
-    setCurrentQuestion(index);
+    if (index >= 0 && index < currentSectionQuestions.length) {
+      setCurrentQuestion(index);
+    }
   };
 
   const nextQuestion = () => {
-    const currentQ = allQuestions[currentQuestion];
+    const currentQ = currentSectionQuestions[currentQuestion];
     
-    if (currentQ.required && !answers[currentQ.id]) {
+    if (currentQ?.required && !answers[currentQ.id]) {
       toast({
         title: "Campo obrigatório",
         description: "Por favor, responda esta questão antes de continuar.",
@@ -121,13 +170,79 @@ export const useFormViewerState = (formId: string | undefined) => {
     }
     
     if (currentQuestion < totalQuestions - 1) {
+      // Move to the next question in the current section
       setCurrentQuestion(currentQuestion + 1);
+    } else {
+      // At the end of section, check if all required questions are answered
+      const unansweredRequired = currentSectionQuestions
+        .filter(q => q.required && !answers[q.id])
+        .map(q => q.id);
+      
+      if (unansweredRequired.length > 0) {
+        setValidationErrors([...validationErrors, ...unansweredRequired]);
+        
+        // Navigate to the first unanswered required question
+        const firstErrorIndex = currentSectionQuestions.findIndex(q => unansweredRequired.includes(q.id));
+        if (firstErrorIndex !== -1) {
+          setCurrentQuestion(firstErrorIndex);
+          
+          toast({
+            title: "Campos obrigatórios",
+            description: "Por favor, preencha todos os campos obrigatórios antes de avançar.",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+      
+      // If we're at the last section, keep the current question as is
+      // Otherwise move to the next section
+      if (currentSection < totalSections - 1) {
+        setCurrentSection(currentSection + 1);
+      }
     }
   };
 
   const prevQuestion = () => {
     if (currentQuestion > 0) {
+      // Move to the previous question in the current section
       setCurrentQuestion(currentQuestion - 1);
+    } else if (currentSection > 0) {
+      // Move to the previous section, and set the question to the last in that section
+      setCurrentSection(currentSection - 1);
+      // This will trigger the useEffect that sets currentSectionQuestions
+      // Then we'll set current question to the last one in the section
+      const prevSectionQuestions = sections[currentSection - 1].questions;
+      setCurrentQuestion(prevSectionQuestions.length - 1);
+    }
+  };
+
+  const goToSection = (sectionIndex: number) => {
+    if (sectionIndex >= 0 && sectionIndex < sections.length) {
+      // Check if we can move forward to this section
+      // Can only move forward if all previous sections' required questions are answered
+      if (sectionIndex > currentSection) {
+        // Check all previous sections
+        for (let i = 0; i <= currentSection; i++) {
+          const sectionQuestions = sections[i].questions;
+          const unansweredRequired = sectionQuestions
+            .filter(q => q.required && !answers[q.id])
+            .map(q => q.id);
+            
+          if (unansweredRequired.length > 0) {
+            // Cannot move forward, there are unanswered required questions
+            toast({
+              title: "Complete a seção atual",
+              description: "Por favor, complete todas as perguntas obrigatórias antes de avançar para a próxima seção.",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+      
+      // We can move to the requested section
+      setCurrentSection(sectionIndex);
     }
   };
 
@@ -148,10 +263,19 @@ export const useFormViewerState = (formId: string | undefined) => {
     if (errors.length > 0) {
       setValidationErrors(errors);
       
-      // Navigate to the first unanswered required question
-      const firstErrorIndex = allQuestions.findIndex(q => errors.includes(q.id));
-      if (firstErrorIndex !== -1) {
-        setCurrentQuestion(firstErrorIndex);
+      // Find the section of the first error
+      const firstErrorQuestion = allQuestions.find(q => errors.includes(q.id));
+      if (firstErrorQuestion) {
+        const sectionIndex = sections.findIndex(s => s.id === firstErrorQuestion.sectionId);
+        if (sectionIndex !== -1) {
+          setCurrentSection(sectionIndex);
+          
+          // Find the question index within the section
+          const questionIndex = sections[sectionIndex].questions.findIndex(q => q.id === firstErrorQuestion.id);
+          if (questionIndex !== -1) {
+            setCurrentQuestion(questionIndex);
+          }
+        }
       }
       
       return false;
@@ -188,7 +312,7 @@ export const useFormViewerState = (formId: string | undefined) => {
 
   const submitForm = async () => {
     // Validate required fields
-    if (totalQuestions === 0) {
+    if (allQuestions.length === 0) {
       toast({
         title: "Erro",
         description: "Este formulário não contém perguntas.",
@@ -269,29 +393,60 @@ export const useFormViewerState = (formId: string | undefined) => {
     setShowCover(true);
   };
 
+  // Check if a section is complete (all required questions answered)
+  const isSectionComplete = (sectionIndex: number): boolean => {
+    if (sectionIndex < 0 || sectionIndex >= sections.length) return false;
+    
+    const sectionQuestions = sections[sectionIndex].questions;
+    const requiredQuestions = sectionQuestions.filter(q => q.required);
+    
+    if (requiredQuestions.length === 0) return true;
+    
+    return requiredQuestions.every(q => !!answers[q.id]);
+  };
+
+  // Check if a section is accessible (all previous sections complete)
+  const isSectionAccessible = (sectionIndex: number): boolean => {
+    if (sectionIndex <= currentSection) return true;
+    
+    for (let i = 0; i < sectionIndex; i++) {
+      if (!isSectionComplete(i)) return false;
+    }
+    
+    return true;
+  };
+
   return {
     loading,
     form,
     currentQuestion,
+    currentSection,
     answers,
     attachments,
     isSubmitted,
     isEmbedded,
     allQuestions,
+    currentSectionQuestions,
+    sections,
     showCover,
     validationErrors,
     cameraInputRef,
     progress,
+    overallProgress,
     totalQuestions,
+    totalSections,
     handleAnswerChange,
     handleFileChange,
     handleCapturePhoto,
     handleCameraCapture,
     goToQuestion,
+    goToSection,
     nextQuestion,
     prevQuestion,
     startForm,
     submitForm,
-    resetForm
+    resetForm,
+    isSectionComplete,
+    isSectionAccessible
   };
 };

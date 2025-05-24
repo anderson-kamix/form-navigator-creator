@@ -27,6 +27,7 @@ interface FormContentProps {
   prevQuestion: () => void;
   submitForm: () => void;
   isDesktop?: boolean;
+  isLastSection?: boolean;
 }
 
 export const FormContent: React.FC<FormContentProps> = ({
@@ -45,20 +46,23 @@ export const FormContent: React.FC<FormContentProps> = ({
   nextQuestion,
   prevQuestion,
   submitForm,
-  isDesktop = false
+  isDesktop = false,
+  isLastSection = true
 }) => {
   if (questions.length === 0) {
     return (
       <Alert className="mt-4">
-        <AlertTitle>Formulário vazio</AlertTitle>
+        <AlertTitle>Seção vazia</AlertTitle>
         <AlertDescription>
-          Este formulário não possui perguntas. Por favor, edite o formulário para adicionar questões.
+          Esta seção não possui perguntas. Por favor, edite o formulário para adicionar questões.
         </AlertDescription>
       </Alert>
     );
   }
 
   const currentQ = questions[currentQuestion];
+  const isLastQuestionInSection = currentQuestion === questions.length - 1;
+  const showSubmitButton = isLastSection && isLastQuestionInSection;
   
   return (
     <>
@@ -73,7 +77,7 @@ export const FormContent: React.FC<FormContentProps> = ({
           {/* Question Navigation (Sidebar) - Desktop only */}
           <div className="lg:col-span-1">
             <div className="p-4 sticky top-8 space-y-6">
-              <h3 className="font-semibold text-slate-800 mb-4">Navegação</h3>
+              <h3 className="font-semibold text-slate-800 mb-4">Perguntas</h3>
               <SidebarNavigation 
                 questions={questions}
                 currentQuestion={currentQuestion}
@@ -128,6 +132,7 @@ export const FormContent: React.FC<FormContentProps> = ({
                   onPrevious={prevQuestion}
                   onNext={nextQuestion}
                   onSubmit={submitForm}
+                  showSubmitButton={showSubmitButton}
                 />
               </div>
             </div>
@@ -178,6 +183,7 @@ export const FormContent: React.FC<FormContentProps> = ({
               onPrevious={prevQuestion}
               onNext={nextQuestion}
               onSubmit={submitForm}
+              showSubmitButton={showSubmitButton}
             />
           </div>
         </div>
