@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Check, Paperclip, Camera, CheckCircle2, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Paperclip, Camera, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Form, FormSection, Question } from '@/types/form';
@@ -34,6 +34,7 @@ const FormViewer = () => {
   const [isEmbedded, setIsEmbedded] = useState(false);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [showCover, setShowCover] = useState(true);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load the form data from localStorage
@@ -68,7 +69,14 @@ const FormViewer = () => {
   const progress = totalQuestions > 0 ? ((currentQuestion + 1) / totalQuestions) * 100 : 0;
 
   const handleAnswerChange = (questionId: string, value: any) => {
-    setAnswers(prev => ({ ...prev, [questionId]: value }));
+    setAnswers(prev => {
+      const updatedAnswers = { ...prev, [questionId]: value };
+      // Remove from validation errors if answered
+      if (value && validationErrors.includes(questionId)) {
+        setValidationErrors(validationErrors.filter(id => id !== questionId));
+      }
+      return updatedAnswers;
+    });
   };
 
   const handleFileChange = (questionId: string, file: File | null) => {
@@ -96,6 +104,20 @@ const FormViewer = () => {
   };
 
   const nextQuestion = () => {
+    const currentQ = allQuestions[currentQuestion];
+    
+    if (currentQ.required && !answers[currentQ.id]) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Por favor, responda esta questão antes de continuar.",
+        variant: "destructive",
+      });
+      if (!validationErrors.includes(currentQ.id)) {
+        setValidationErrors([...validationErrors, currentQ.id]);
+      }
+      return;
+    }
+    
     if (currentQuestion < totalQuestions - 1) {
       setCurrentQuestion(currentQuestion + 1);
     }
@@ -111,6 +133,31 @@ const FormViewer = () => {
     setShowCover(false);
   };
 
+  const validateAllRequiredQuestions = (): boolean => {
+    const errors: string[] = [];
+    
+    // Check all required questions
+    allQuestions.forEach(question => {
+      if (question.required && !answers[question.id]) {
+        errors.push(question.id);
+      }
+    });
+    
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      
+      // Navigate to the first unanswered required question
+      const firstErrorIndex = allQuestions.findIndex(q => errors.includes(q.id));
+      if (firstErrorIndex !== -1) {
+        setCurrentQuestion(firstErrorIndex);
+      }
+      
+      return false;
+    }
+    
+    return true;
+  };
+
   const submitForm = () => {
     // Validate required fields
     if (totalQuestions === 0) {
@@ -122,11 +169,11 @@ const FormViewer = () => {
       return;
     }
 
-    const currentQ = allQuestions[currentQuestion];
-    if (currentQ.required && !answers[currentQ.id]) {
+    // Validate all required questions before submission
+    if (!validateAllRequiredQuestions()) {
       toast({
-        title: "Campo obrigatório",
-        description: "Por favor, responda esta questão antes de continuar.",
+        title: "Campos obrigatórios",
+        description: "Por favor, responda todas as questões obrigatórias antes de enviar o formulário.",
         variant: "destructive",
       });
       return;
@@ -157,11 +204,12 @@ const FormViewer = () => {
   const renderQuestion = (question: Question) => {
     const value = answers[question.id];
     const attachment = attachments[question.id];
+    const hasError = validationErrors.includes(question.id);
 
     return (
       <div className="space-y-6">
         {/* Main Question Input */}
-        <div className="space-y-4">
+        <div className={`space-y-4 ${hasError ? 'border-l-4 border-red-500 pl-4' : ''}`}>
           {(() => {
             switch (question.type) {
               case 'text':
@@ -170,7 +218,7 @@ const FormViewer = () => {
                     value={value || ''}
                     onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                     placeholder="Digite sua resposta"
-                    className="text-lg"
+                    className={`text-lg ${hasError ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   />
                 );
 
@@ -181,7 +229,7 @@ const FormViewer = () => {
                     onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                     placeholder="Digite sua resposta"
                     rows={4}
-                    className="text-lg"
+                    className={`text-lg ${hasError ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   />
                 );
 
@@ -190,6 +238,7 @@ const FormViewer = () => {
                   <RadioGroup
                     value={value || ''}
                     onValueChange={(val) => handleAnswerChange(question.id, val)}
+                    className={hasError ? 'border-l-2 border-red-500 pl-2' : ''}
                   >
                     {question.options?.map((option, index) => (
                       <div key={index} className="flex items-center space-x-2">
@@ -204,7 +253,7 @@ const FormViewer = () => {
 
               case 'checkbox':
                 return (
-                  <div className="space-y-3">
+                  <div className={`space-y-3 ${hasError ? 'border-l-2 border-red-500 pl-2' : ''}`}>
                     {question.options?.map((option, index) => (
                       <div key={index} className="flex items-center space-x-2">
                         <Checkbox
@@ -229,8 +278,11 @@ const FormViewer = () => {
 
               case 'select':
                 return (
-                  <Select value={value || ''} onValueChange={(val) => handleAnswerChange(question.id, val)}>
-                    <SelectTrigger className="text-lg">
+                  <Select 
+                    value={value || ''} 
+                    onValueChange={(val) => handleAnswerChange(question.id, val)}
+                  >
+                    <SelectTrigger className={`text-lg ${hasError ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
                       <SelectValue placeholder="Selecione uma opção" />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,6 +300,14 @@ const FormViewer = () => {
             }
           })()}
         </div>
+
+        {/* Error message for required fields */}
+        {hasError && (
+          <div className="text-red-500 flex items-center text-sm">
+            <AlertCircle className="h-4 w-4 mr-1" />
+            <span>Este campo é obrigatório</span>
+          </div>
+        )}
 
         {/* Attachment Section */}
         {question.allowAttachments && (
@@ -547,31 +607,41 @@ const FormViewer = () => {
                   <Card className="p-4 sticky top-8">
                     <h3 className="font-semibold text-slate-800 mb-4">Navegação</h3>
                     <div className="space-y-2">
-                      {allQuestions.map((question, index) => (
-                        <button
-                          key={question.id}
-                          onClick={() => goToQuestion(index)}
-                          className={`w-full text-left p-3 rounded-lg transition-all ${
-                            index === currentQuestion
-                              ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
-                              : answers[question.id]
-                              ? 'bg-green-50 text-green-700 border border-green-200'
-                              : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">
-                              Questão {index + 1}
-                            </span>
-                            {answers[question.id] && (
-                              <Check className="w-4 h-4 text-green-600" />
-                            )}
-                          </div>
-                          <div className="text-xs mt-1 truncate">
-                            {question.title}
-                          </div>
-                        </button>
-                      ))}
+                      {allQuestions.map((question, index) => {
+                        const hasError = validationErrors.includes(question.id);
+                        const isAnswered = !!answers[question.id];
+                        
+                        return (
+                          <button
+                            key={question.id}
+                            onClick={() => goToQuestion(index)}
+                            className={`w-full text-left p-3 rounded-lg transition-all ${
+                              hasError
+                                ? 'bg-red-100 text-red-700 border-2 border-red-300'
+                                : index === currentQuestion
+                                ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                                : isAnswered
+                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">
+                                Questão {index + 1}
+                                {question.required && <span className="text-red-500 ml-1">*</span>}
+                              </span>
+                              {hasError ? (
+                                <AlertCircle className="w-4 h-4 text-red-600" />
+                              ) : isAnswered ? (
+                                <Check className="w-4 h-4 text-green-600" />
+                              ) : null}
+                            </div>
+                            <div className="text-xs mt-1 truncate">
+                              {question.title}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
 
                     {/* Progress */}

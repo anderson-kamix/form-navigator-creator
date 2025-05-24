@@ -65,15 +65,28 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, index, sectionId,
           )}
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id={`attachment-${question.id}`}
-                checked={question.allowAttachments || false}
-                onCheckedChange={(checked) => 
-                  onUpdate(sectionId, question.id, { allowAttachments: checked })
-                }
-              />
-              <Label htmlFor={`attachment-${question.id}`}>Permitir anexos</Label>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`required-${question.id}`}
+                  checked={question.required}
+                  onCheckedChange={(checked) => 
+                    onUpdate(sectionId, question.id, { required: checked })
+                  }
+                />
+                <Label htmlFor={`required-${question.id}`}>Obrigatório</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`attachment-${question.id}`}
+                  checked={question.allowAttachments || false}
+                  onCheckedChange={(checked) => 
+                    onUpdate(sectionId, question.id, { allowAttachments: checked })
+                  }
+                />
+                <Label htmlFor={`attachment-${question.id}`}>Permitir anexos</Label>
+              </div>
             </div>
             
             {question.allowAttachments && (
