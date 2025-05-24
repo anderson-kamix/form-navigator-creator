@@ -3,7 +3,12 @@ import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Question } from '@/types/form';
 import { QuestionRenderer } from './QuestionRenderer';
-import { FormNavigation } from './FormNavigation';
+import { 
+  FormNavigation, 
+  SidebarNavigation, 
+  ProgressBar, 
+  BottomNavigation 
+} from './FormNavigation';
 
 interface FormContentProps {
   title: string;
@@ -42,18 +47,6 @@ export const FormContent: React.FC<FormContentProps> = ({
   submitForm,
   isDesktop = false
 }) => {
-  const navigation = FormNavigation({
-    questions,
-    currentQuestion,
-    answers,
-    validationErrors,
-    onNavigate: goToQuestion,
-    onPrevious: prevQuestion,
-    onNext: nextQuestion,
-    onSubmit: submitForm,
-    progress
-  });
-
   if (questions.length === 0) {
     return (
       <Alert className="mt-4">
@@ -81,11 +74,17 @@ export const FormContent: React.FC<FormContentProps> = ({
           <div className="lg:col-span-1">
             <div className="p-4 sticky top-8 space-y-6">
               <h3 className="font-semibold text-slate-800 mb-4">Navegação</h3>
-              {navigation.renderSidebarNavigation()}
+              <SidebarNavigation 
+                questions={questions}
+                currentQuestion={currentQuestion}
+                answers={answers}
+                validationErrors={validationErrors}
+                onNavigate={goToQuestion}
+              />
               
               {/* Progress */}
               <div className="mt-6">
-                {navigation.renderProgressBar()}
+                <ProgressBar progress={progress} />
               </div>
             </div>
           </div>
@@ -123,7 +122,13 @@ export const FormContent: React.FC<FormContentProps> = ({
 
               {/* Navigation Buttons */}
               <div>
-                {navigation.renderBottomNavigation()}
+                <BottomNavigation
+                  currentQuestion={currentQuestion}
+                  questionsLength={questions.length}
+                  onPrevious={prevQuestion}
+                  onNext={nextQuestion}
+                  onSubmit={submitForm}
+                />
               </div>
             </div>
           </div>
@@ -133,7 +138,7 @@ export const FormContent: React.FC<FormContentProps> = ({
         <div className="space-y-8">
           {/* Progress Bar */}
           <div className="mb-8">
-            {navigation.renderProgressBar()}
+            <ProgressBar progress={progress} />
           </div>
 
           {/* Current Question */}
@@ -167,7 +172,13 @@ export const FormContent: React.FC<FormContentProps> = ({
 
           {/* Navigation Buttons */}
           <div>
-            {navigation.renderBottomNavigation()}
+            <BottomNavigation
+              currentQuestion={currentQuestion}
+              questionsLength={questions.length}
+              onPrevious={prevQuestion}
+              onNext={nextQuestion}
+              onSubmit={submitForm}
+            />
           </div>
         </div>
       )}

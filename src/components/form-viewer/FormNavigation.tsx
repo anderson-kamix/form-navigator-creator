@@ -27,8 +27,23 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
   onSubmit,
   progress
 }) => {
-  // Desktop/Sidebar navigation
-  const renderSidebarNavigation = () => (
+  return (
+    <div className="space-y-6">
+      {/* Progress bar will be rendered separately */}
+      {/* Navigation buttons will be rendered separately */}
+    </div>
+  );
+};
+
+// Export sidebar navigation component
+export const SidebarNavigation: React.FC<{
+  questions: Question[];
+  currentQuestion: number;
+  answers: Record<string, any>;
+  validationErrors: string[];
+  onNavigate: (index: number) => void;
+}> = ({ questions, currentQuestion, answers, validationErrors, onNavigate }) => {
+  return (
     <div className="space-y-2">
       {questions.map((question, index) => {
         const hasError = validationErrors.includes(question.id);
@@ -67,9 +82,13 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
       })}
     </div>
   );
+};
 
-  // Progress bar
-  const renderProgressBar = () => (
+// Export progress bar component
+export const ProgressBar: React.FC<{
+  progress: number;
+}> = ({ progress }) => {
+  return (
     <div className="w-full">
       <div className="flex justify-between text-sm text-slate-600 mb-2">
         <span>Progresso</span>
@@ -83,9 +102,17 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
       </div>
     </div>
   );
+};
 
-  // Bottom navigation buttons
-  const renderBottomNavigation = () => (
+// Export bottom navigation component
+export const BottomNavigation: React.FC<{
+  currentQuestion: number;
+  questionsLength: number;
+  onPrevious: () => void;
+  onNext: () => void;
+  onSubmit: () => void;
+}> = ({ currentQuestion, questionsLength, onPrevious, onNext, onSubmit }) => {
+  return (
     <div className="flex justify-between">
       <Button
         variant="outline"
@@ -96,7 +123,7 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
         Anterior
       </Button>
 
-      {currentQuestion === questions.length - 1 ? (
+      {currentQuestion === questionsLength - 1 ? (
         <Button onClick={onSubmit} className="bg-green-600 hover:bg-green-700">
           <Check className="w-4 h-4 mr-2" />
           Finalizar
@@ -109,10 +136,4 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
       )}
     </div>
   );
-
-  return {
-    renderSidebarNavigation,
-    renderProgressBar,
-    renderBottomNavigation
-  };
 };
