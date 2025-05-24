@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, Trash2, Share2, Copy, Eye, FileText } from 'lucide-react';
+import { Edit, Trash2, Share2, Copy, Eye, FileText, BarChart, List } from 'lucide-react';
 import { Form } from '@/types/form';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -22,20 +23,27 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  Badge
+} from '@/components/ui/badge';
 import { Facebook, Linkedin, X, Share, MessageCircleMore } from 'lucide-react';
 
 const FormManagement = () => {
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
+  const [responseCounts, setResponseCounts] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
     // Carregar formulários do localStorage
     const storedForms = JSON.parse(localStorage.getItem('forms') || '[]');
     setForms(storedForms);
+    
+    // Carregar contagem de respostas para cada formulário
+    const counts: {[key: string]: number} = {};
+    storedForms.forEach((form: Form) => {
+      const responses = JSON.parse(localStorage.getItem(`responses_${form.id}`) || '[]');
+      counts[form.id] = responses.length;
+    });
+    setResponseCounts(counts);
   }, []);
 
   const togglePublishStatus = (formId: string) => {
@@ -152,6 +160,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
               <TableRow>
                 <TableHead>Nome do Formulário</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Respostas</TableHead>
                 <TableHead>Data de Criação</TableHead>
                 <TableHead>Última Atualização</TableHead>
                 <TableHead>Ações</TableHead>
@@ -172,6 +181,11 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                       </span>
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="font-semibold">
+                      {responseCounts[form.id] || 0}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{formatDate(form.createdAt)}</TableCell>
                   <TableCell>{formatDate(form.updatedAt)}</TableCell>
                   <TableCell>
@@ -184,6 +198,16 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                       <Button variant="outline" size="sm" asChild>
                         <Link to={`/forms/${form.id}/edit`} title="Editar">
                           <Edit className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/responses/${form.id}`} title="Ver Respostas">
+                          <List className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/statistics/${form.id}`} title="Ver Estatísticas">
+                          <BarChart className="h-4 w-4" />
                         </Link>
                       </Button>
                       <Sheet>

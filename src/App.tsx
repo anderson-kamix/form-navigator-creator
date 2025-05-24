@@ -9,6 +9,8 @@ import Dashboard from "./components/Dashboard";
 import FormBuilder from "./components/FormBuilder";
 import FormViewer from "./components/FormViewer";
 import FormManagement from "./components/FormManagement";
+import ResponseViewer from "./components/ResponseViewer";
+import ResponseStatistics from "./components/ResponseStatistics";
 import Statistics from "./components/Statistics";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +31,8 @@ const App = () => (
                 <Route path="/forms/new" element={<FormBuilder />} />
                 <Route path="/forms" element={<FormManagement />} />
                 <Route path="/forms/:id" element={<FormViewer />} />
+                <Route path="/responses/:id" element={<ResponseViewer />} />
+                <Route path="/statistics/:id" element={<ResponseStatistics />} />
                 <Route path="/statistics" element={<Statistics />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
