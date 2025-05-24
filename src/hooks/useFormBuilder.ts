@@ -16,7 +16,7 @@ export const useFormBuilder = (isEditing = false) => {
   const [sections, setSections] = useState<FormSection[]>([
     {
       id: Date.now().toString(),
-      title: 'Seção padrão',
+      title: formTitle || 'Nova seção',
       description: '',
       questions: [],
       isOpen: true
@@ -62,7 +62,7 @@ export const useFormBuilder = (isEditing = false) => {
   const addSection = () => {
     const newSection: FormSection = {
       id: Date.now().toString(),
-      title: `Nova Seção`,
+      title: `Seção ${sections.length + 1}`,
       description: '',
       questions: [],
       isOpen: true
