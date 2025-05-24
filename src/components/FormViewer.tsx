@@ -1,406 +1,53 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Check, Paperclip, Camera, CheckCircle2, ArrowRight, AlertCircle, RefreshCw } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Form, FormSection, Question } from '@/types/form';
-import { Skeleton } from '@/components/ui/skeleton';
 
-interface Response {
-  formId: string;
-  answers: Record<string, any>;
-  attachments: Record<string, string>;
-  submittedAt: Date;
-}
+import React from 'react';
+import { useParams } from 'react-router-dom';
+import { Card } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useFormViewerState, Response } from './form-viewer/useFormViewerState';
+import { CoverScreen } from './form-viewer/CoverScreen';
+import { FormContent } from './form-viewer/FormContent';
+import { SuccessScreen } from './form-viewer/SuccessScreen';
 
 const FormViewer = () => {
   const { id } = useParams();
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState<Form | null>(null);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [currentSection, setCurrentSection] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
-  const [attachments, setAttachments] = useState<Record<string, File | null>>({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isEmbedded, setIsEmbedded] = useState(false);
-  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
-  const [showCover, setShowCover] = useState(true);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const {
+    loading,
+    form,
+    currentQuestion,
+    answers,
+    attachments,
+    isSubmitted,
+    isEmbedded,
+    allQuestions,
+    showCover,
+    validationErrors,
+    cameraInputRef,
+    progress,
+    totalQuestions,
+    handleAnswerChange,
+    handleFileChange,
+    handleCapturePhoto,
+    handleCameraCapture,
+    goToQuestion,
+    nextQuestion,
+    prevQuestion,
+    startForm,
+    submitForm,
+    resetForm
+  } = useFormViewerState(id);
 
-  // Load the form data from localStorage
-  useEffect(() => {
-    if (id) {
-      const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
-      const formData = existingForms.find((f: Form) => f.id === id);
-      
-      if (formData) {
-        setForm(formData);
-        
-        // Flatten all questions from all sections into a single array
-        const questions = formData.sections.flatMap(section => 
-          section.questions.map(q => ({...q, sectionId: section.id}))
-        );
-        setAllQuestions(questions);
-      }
-      
-      setLoading(false);
-    }
-  }, [id]);
-
-  // Check if the form is viewed embedded (standalone)
-  useEffect(() => {
-    // Check if the URL has an embedded query param or if the referrer is different
-    const urlParams = new URLSearchParams(window.location.search);
-    const embedded = urlParams.get('embedded') === 'true';
-    setIsEmbedded(embedded || !window.location.pathname.includes('/forms/'));
-  }, []);
-
-  const totalQuestions = allQuestions.length;
-  const progress = totalQuestions > 0 ? ((currentQuestion + 1) / totalQuestions) * 100 : 0;
-
-  const handleAnswerChange = (questionId: string, value: any) => {
-    setAnswers(prev => {
-      const updatedAnswers = { ...prev, [questionId]: value };
-      // Remove from validation errors if answered
-      if (value && validationErrors.includes(questionId)) {
-        setValidationErrors(validationErrors.filter(id => id !== questionId));
-      }
-      return updatedAnswers;
-    });
-  };
-
-  const handleFileChange = (questionId: string, file: File | null) => {
-    setAttachments(prev => ({ ...prev, [questionId]: file }));
-  };
-
-  const handleCapturePhoto = (questionId: string) => {
-    if (cameraInputRef.current) {
-      // Set the current question ID as a data attribute to keep track of which question's photo we're capturing
-      cameraInputRef.current.dataset.questionId = questionId;
-      
-      // Configure for camera capture and trigger camera
-      cameraInputRef.current.accept = "image/*";
-      cameraInputRef.current.capture = "environment";
-      cameraInputRef.current.click();
-    }
-  };
-
-  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const target = e.target;
-    const questionId = target.dataset.questionId || '';
-    
-    if (target.files && target.files.length > 0) {
-      const file = target.files[0];
-      handleFileChange(questionId, file);
-      
-      toast({
-        title: "Foto capturada",
-        description: "A foto foi anexada à sua resposta.",
-      });
-      
-      // Reset the input value so the same file can be selected again if needed
-      target.value = '';
-    }
-  };
-
-  const goToQuestion = (index: number) => {
-    setCurrentQuestion(index);
-  };
-
-  const nextQuestion = () => {
-    const currentQ = allQuestions[currentQuestion];
-    
-    if (currentQ.required && !answers[currentQ.id]) {
-      toast({
-        title: "Campo obrigatório",
-        description: "Por favor, responda esta questão antes de continuar.",
-        variant: "destructive",
-      });
-      if (!validationErrors.includes(currentQ.id)) {
-        setValidationErrors([...validationErrors, currentQ.id]);
-      }
-      return;
-    }
-    
-    if (currentQuestion < totalQuestions - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    }
-  };
-
-  const prevQuestion = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
-
-  const startForm = () => {
-    setShowCover(false);
-  };
-
-  const validateAllRequiredQuestions = (): boolean => {
-    const errors: string[] = [];
-    
-    // Check all required questions
-    allQuestions.forEach(question => {
-      if (question.required && !answers[question.id]) {
-        errors.push(question.id);
-      }
-    });
-    
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      
-      // Navigate to the first unanswered required question
-      const firstErrorIndex = allQuestions.findIndex(q => errors.includes(q.id));
-      if (firstErrorIndex !== -1) {
-        setCurrentQuestion(firstErrorIndex);
-      }
-      
-      return false;
-    }
-    
-    return true;
-  };
-
-  const submitForm = () => {
-    // Validate required fields
-    if (totalQuestions === 0) {
-      toast({
-        title: "Erro",
-        description: "Este formulário não contém perguntas.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate all required questions before submission
-    if (!validateAllRequiredQuestions()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, responda todas as questões obrigatórias antes de enviar o formulário.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Save response to localStorage
-    if (form) {
-      const newResponse: Response = {
-        formId: form.id,
-        answers: answers,
-        attachments: Object.fromEntries(
-          Object.entries(attachments)
-            .filter(([_, file]) => file !== null)
-            .map(([key, file]) => [key, (file as File).name])
-        ),
-        submittedAt: new Date()
-      };
-
-      // Get existing responses
-      const existingResponses = JSON.parse(localStorage.getItem('form_responses') || '[]');
-      localStorage.setItem('form_responses', JSON.stringify([...existingResponses, newResponse]));
-    }
-    
-    // Show success screen
-    setIsSubmitted(true);
-  };
-
-  const renderQuestion = (question: Question) => {
-    const value = answers[question.id];
-    const attachment = attachments[question.id];
-    const hasError = validationErrors.includes(question.id);
-
-    return (
-      <div className="space-y-6">
-        {/* Main Question Input */}
-        <div className={`space-y-4 ${hasError ? 'border-l-4 border-red-500 pl-4' : ''}`}>
-          {(() => {
-            switch (question.type) {
-              case 'text':
-                return (
-                  <Input
-                    value={value || ''}
-                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    placeholder="Digite sua resposta"
-                    className={`text-lg ${hasError ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                  />
-                );
-
-              case 'textarea':
-                return (
-                  <Textarea
-                    value={value || ''}
-                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    placeholder="Digite sua resposta"
-                    rows={4}
-                    className={`text-lg ${hasError ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                  />
-                );
-
-              case 'radio':
-                return (
-                  <RadioGroup
-                    value={value || ''}
-                    onValueChange={(val) => handleAnswerChange(question.id, val)}
-                    className={hasError ? 'border-l-2 border-red-500 pl-2' : ''}
-                  >
-                    {question.options?.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <RadioGroupItem value={option} id={`${question.id}-${index}`} />
-                        <Label htmlFor={`${question.id}-${index}`} className="text-lg">
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                );
-
-              case 'checkbox':
-                return (
-                  <div className={`space-y-3 ${hasError ? 'border-l-2 border-red-500 pl-2' : ''}`}>
-                    {question.options?.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${question.id}-${index}`}
-                          checked={value?.includes(option) || false}
-                          onCheckedChange={(checked) => {
-                            const currentValues = value || [];
-                            if (checked) {
-                              handleAnswerChange(question.id, [...currentValues, option]);
-                            } else {
-                              handleAnswerChange(question.id, currentValues.filter((v: string) => v !== option));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`${question.id}-${index}`} className="text-lg">
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                );
-
-              case 'select':
-                return (
-                  <Select 
-                    value={value || ''} 
-                    onValueChange={(val) => handleAnswerChange(question.id, val)}
-                  >
-                    <SelectTrigger className={`text-lg ${hasError ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
-                      <SelectValue placeholder="Selecione uma opção" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {question.options?.map((option, index) => (
-                        <SelectItem key={index} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                );
-
-              default:
-                return null;
-            }
-          })()}
-        </div>
-
-        {/* Error message for required fields */}
-        {hasError && (
-          <div className="text-red-500 flex items-center text-sm">
-            <AlertCircle className="h-4 w-4 mr-1" />
-            <span>Este campo é obrigatório</span>
-          </div>
-        )}
-
-        {/* Attachment Section */}
-        {question.allowAttachments && (
-          <div className="border-t pt-4 mt-4">
-            <div className="flex flex-col space-y-4">
-              <h3 className="text-sm font-medium text-slate-700">Anexos</h3>
-              
-              <div className="flex flex-wrap gap-4">
-                <div>
-                  <input
-                    type="file"
-                    id={`file-${question.id}`}
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        handleFileChange(question.id, e.target.files[0]);
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById(`file-${question.id}`)?.click()}
-                    className="flex items-center"
-                  >
-                    <Paperclip className="w-4 h-4 mr-2" />
-                    Anexar arquivo
-                  </Button>
-                </div>
-                
-                <div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCapturePhoto(question.id)}
-                    className="flex items-center"
-                  >
-                    <Camera className="w-4 h-4 mr-2" />
-                    Capturar foto
-                  </Button>
-                </div>
-              </div>
-
-              {attachment && (
-                <div className="mt-2">
-                  <div className="bg-slate-50 border rounded p-2 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Paperclip className="w-4 h-4 text-slate-500 mr-2" />
-                      <span className="text-sm truncate max-w-[200px]">{attachment.name}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleFileChange(question.id, null)}
-                      className="text-red-500 h-auto py-1 px-2"
-                    >
-                      Remover
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Function to reset the form for a new submission
-  const resetForm = () => {
-    setAnswers({});
-    setAttachments({});
-    setCurrentQuestion(0);
-    setCurrentSection(0);
-    setIsSubmitted(false);
-    setValidationErrors([]);
-    setShowCover(true);
-  };
+  // Shared camera input that will be used across all questions
+  const sharedCameraInput = (
+    <input
+      type="file"
+      accept="image/*"
+      capture="environment"
+      ref={cameraInputRef}
+      className="hidden"
+      onChange={handleCameraCapture}
+    />
+  );
 
   // Loading state
   if (loading) {
@@ -429,80 +76,6 @@ const FormViewer = () => {
     );
   }
 
-  // Cover Screen Component
-  const CoverScreen = () => {
-    const cover = form?.cover || {
-      title: form?.title || "Formulário",
-      description: form?.description || "",
-      buttonText: "Iniciar",
-      alignment: "center" as 'left' | 'center'
-    };
-
-    return (
-      <div className={`flex flex-col ${
-        cover.alignment === 'center' ? 'items-center text-center' : 'items-start text-left'
-      } p-8`}>
-        {cover.coverImage && (
-          <div className="mb-8 w-full max-h-64 overflow-hidden rounded-lg">
-            <img 
-              src={cover.coverImage} 
-              alt="Capa do formulário" 
-              className="w-full object-cover"
-            />
-          </div>
-        )}
-        <h1 className="text-3xl font-bold text-slate-800 mb-4">
-          {cover.title}
-        </h1>
-        {cover.description && (
-          <p className="text-lg text-slate-600 mb-8 max-w-2xl">
-            {cover.description}
-          </p>
-        )}
-        <Button 
-          onClick={startForm}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md text-lg"
-        >
-          {cover.buttonText || "Iniciar"}
-          <ArrowRight className="ml-2 h-5 w-5" />
-        </Button>
-      </div>
-    );
-  };
-
-  // Success Screen Component
-  const SuccessScreen = () => (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="rounded-full bg-green-100 p-5 mb-6">
-        <CheckCircle2 className="w-16 h-16 text-green-600" />
-      </div>
-      <h2 className="text-3xl font-bold text-gray-800 mb-4">Formulário Enviado!</h2>
-      <p className="text-lg text-gray-600 mb-8 max-w-md">
-        Obrigado por dedicar seu tempo para responder nosso formulário. 
-        Suas respostas foram registradas com sucesso.
-      </p>
-      <Button 
-        className="bg-blue-600 hover:bg-blue-700 flex items-center" 
-        onClick={resetForm}
-      >
-        <RefreshCw className="w-4 h-4 mr-2" />
-        Enviar novo formulário
-      </Button>
-    </div>
-  );
-
-  // Add a shared camera input that will be used across all questions
-  const sharedCameraInput = (
-    <input
-      type="file"
-      accept="image/*"
-      capture="environment"
-      ref={cameraInputRef}
-      className="hidden"
-      onChange={handleCameraCapture}
-    />
-  );
-
   // Embedded version with simplified layout
   if (isEmbedded) {
     if (isSubmitted) {
@@ -510,7 +83,7 @@ const FormViewer = () => {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-16 px-4 sm:px-6 lg:px-8 flex justify-center">
           <Card className="w-full max-w-2xl shadow-lg border-0">
             <div className="p-8">
-              <SuccessScreen />
+              <SuccessScreen onReset={resetForm} />
             </div>
           </Card>
         </div>
@@ -523,83 +96,30 @@ const FormViewer = () => {
           <div className="p-8">
             {sharedCameraInput}
             {showCover ? (
-              <CoverScreen />
+              <CoverScreen 
+                title={form.title}
+                description={form.description}
+                cover={form.cover}
+                onStart={startForm}
+              />
             ) : (
-              <>
-                {/* Header */}
-                <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-slate-800 mb-2">{form.title}</h1>
-                  <p className="text-slate-600">{form.description}</p>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-8">
-                  <div className="flex justify-between text-sm text-slate-600 mb-2">
-                    <span>Progresso</span>
-                    <span>{Math.round(progress)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Current Question */}
-                {allQuestions.length > 0 ? (
-                  <>
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-sm font-medium text-blue-600">
-                          Questão {currentQuestion + 1} de {totalQuestions}
-                        </span>
-                        {allQuestions[currentQuestion]?.required && (
-                          <span className="text-sm text-red-600">* Obrigatório</span>
-                        )}
-                      </div>
-                      <h2 className="text-2xl font-semibold text-slate-800 mb-6">
-                        {allQuestions[currentQuestion]?.title}
-                      </h2>
-                    </div>
-
-                    <div className="mb-8">
-                      {allQuestions[currentQuestion] && renderQuestion(allQuestions[currentQuestion])}
-                    </div>
-
-                    {/* Navigation Buttons */}
-                    <div className="flex justify-between">
-                      <Button
-                        variant="outline"
-                        onClick={prevQuestion}
-                        disabled={currentQuestion === 0}
-                      >
-                        <ChevronLeft className="w-4 h-4 mr-2" />
-                        Anterior
-                      </Button>
-
-                      {currentQuestion === totalQuestions - 1 ? (
-                        <Button onClick={submitForm} className="bg-green-600 hover:bg-green-700">
-                          <Check className="w-4 h-4 mr-2" />
-                          Finalizar
-                        </Button>
-                      ) : (
-                        <Button onClick={nextQuestion}>
-                          Próxima
-                          <ChevronRight className="w-4 h-4 ml-2" />
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <Alert className="mt-4">
-                    <AlertTitle>Formulário vazio</AlertTitle>
-                    <AlertDescription>
-                      Este formulário não possui perguntas. Por favor, edite o formulário para adicionar questões.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </>
+              <FormContent 
+                title={form.title}
+                description={form.description}
+                questions={allQuestions}
+                currentQuestion={currentQuestion}
+                answers={answers}
+                attachments={attachments}
+                validationErrors={validationErrors}
+                progress={progress}
+                handleAnswerChange={handleAnswerChange}
+                handleFileChange={handleFileChange}
+                handleCapturePhoto={handleCapturePhoto}
+                goToQuestion={goToQuestion}
+                nextQuestion={nextQuestion}
+                prevQuestion={prevQuestion}
+                submitForm={submitForm}
+              />
             )}
           </div>
         </Card>
@@ -613,7 +133,7 @@ const FormViewer = () => {
       {isSubmitted ? (
         <div className="max-w-4xl mx-auto">
           <Card className="p-8">
-            <SuccessScreen />
+            <SuccessScreen onReset={resetForm} />
           </Card>
         </div>
       ) : (
@@ -621,134 +141,34 @@ const FormViewer = () => {
           {sharedCameraInput}
           {showCover ? (
             <Card className="p-8">
-              <CoverScreen />
+              <CoverScreen 
+                title={form.title}
+                description={form.description}
+                cover={form.cover}
+                onStart={startForm}
+              />
             </Card>
           ) : (
-            <>
-              {/* Header */}
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-800 mb-2">{form.title}</h1>
-                <p className="text-slate-600">{form.description}</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Question Navigation */}
-                <div className="lg:col-span-1">
-                  <Card className="p-4 sticky top-8">
-                    <h3 className="font-semibold text-slate-800 mb-4">Navegação</h3>
-                    <div className="space-y-2">
-                      {allQuestions.map((question, index) => {
-                        const hasError = validationErrors.includes(question.id);
-                        const isAnswered = !!answers[question.id];
-                        
-                        return (
-                          <button
-                            key={question.id}
-                            onClick={() => goToQuestion(index)}
-                            className={`w-full text-left p-3 rounded-lg transition-all ${
-                              hasError
-                                ? 'bg-red-100 text-red-700 border-2 border-red-300'
-                                : index === currentQuestion
-                                ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
-                                : isAnswered
-                                ? 'bg-green-50 text-green-700 border border-green-200'
-                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">
-                                Questão {index + 1}
-                                {question.required && <span className="text-red-500 ml-1">*</span>}
-                              </span>
-                              {hasError ? (
-                                <AlertCircle className="w-4 h-4 text-red-600" />
-                              ) : isAnswered ? (
-                                <Check className="w-4 h-4 text-green-600" />
-                              ) : null}
-                            </div>
-                            <div className="text-xs mt-1 truncate">
-                              {question.title}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Progress */}
-                    <div className="mt-6">
-                      <div className="flex justify-between text-sm text-slate-600 mb-2">
-                        <span>Progresso</span>
-                        <span>{Math.round(progress)}%</span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Current Question */}
-                <div className="lg:col-span-3">
-                  <Card className="p-8">
-                    {allQuestions.length > 0 ? (
-                      <>
-                        <div className="mb-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-medium text-blue-600">
-                              Questão {currentQuestion + 1} de {totalQuestions}
-                            </span>
-                            {allQuestions[currentQuestion]?.required && (
-                              <span className="text-sm text-red-600">* Obrigatório</span>
-                            )}
-                          </div>
-                          <h2 className="text-2xl font-semibold text-slate-800 mb-6">
-                            {allQuestions[currentQuestion]?.title}
-                          </h2>
-                        </div>
-
-                        <div className="mb-8">
-                          {allQuestions[currentQuestion] && renderQuestion(allQuestions[currentQuestion])}
-                        </div>
-
-                        {/* Navigation Buttons */}
-                        <div className="flex justify-between">
-                          <Button
-                            variant="outline"
-                            onClick={prevQuestion}
-                            disabled={currentQuestion === 0}
-                          >
-                            <ChevronLeft className="w-4 h-4 mr-2" />
-                            Anterior
-                          </Button>
-
-                          {currentQuestion === totalQuestions - 1 ? (
-                            <Button onClick={submitForm} className="bg-green-600 hover:bg-green-700">
-                              <Check className="w-4 h-4 mr-2" />
-                              Finalizar
-                            </Button>
-                          ) : (
-                            <Button onClick={nextQuestion}>
-                              Próxima
-                              <ChevronRight className="w-4 h-4 ml-2" />
-                            </Button>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <Alert className="mt-4">
-                        <AlertTitle>Formulário vazio</AlertTitle>
-                        <AlertDescription>
-                          Este formulário não possui perguntas. Por favor, edite o formulário para adicionar questões.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </Card>
-                </div>
-              </div>
-            </>
+            <Card className="p-8">
+              <FormContent 
+                title={form.title}
+                description={form.description}
+                questions={allQuestions}
+                currentQuestion={currentQuestion}
+                answers={answers}
+                attachments={attachments}
+                validationErrors={validationErrors}
+                progress={progress}
+                handleAnswerChange={handleAnswerChange}
+                handleFileChange={handleFileChange}
+                handleCapturePhoto={handleCapturePhoto}
+                goToQuestion={goToQuestion}
+                nextQuestion={nextQuestion}
+                prevQuestion={prevQuestion}
+                submitForm={submitForm}
+                isDesktop={true}
+              />
+            </Card>
           )}
         </div>
       )}
