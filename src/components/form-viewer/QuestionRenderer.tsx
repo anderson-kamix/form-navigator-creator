@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Paperclip, Camera, AlertCircle, X } from 'lucide-react';
 import { Question } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
@@ -42,6 +42,51 @@ export const QuestionRenderer = ({
     };
   }, [previewUrl]);
 
+  const renderRadioOptions = () => {
+    // Verificar se temos mais de 4 opções para decidir qual layout usar
+    const useToggleGroup = question.options && question.options.length <= 4;
+
+    if (useToggleGroup) {
+      return (
+        <ToggleGroup
+          type="single"
+          value={value || ''}
+          onValueChange={(val) => {
+            if (val) onAnswerChange(val);
+          }}
+          className="flex flex-wrap gap-2"
+        >
+          {question.options?.map((option, index) => (
+            <ToggleGroupItem
+              key={index}
+              value={option}
+              className="rounded-full bg-white border px-4 py-2 data-[state=on]:bg-primary data-[state=on]:text-white"
+            >
+              {option}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      );
+    }
+
+    return (
+      <RadioGroup
+        value={value || ''}
+        onValueChange={(val) => onAnswerChange(val)}
+        className={`space-y-3 ${hasError ? 'border-l-2 border-red-500 pl-2' : ''}`}
+      >
+        {question.options?.map((option, index) => (
+          <RadioGroupItem
+            key={index}
+            value={option}
+            card
+            className="cursor-pointer"
+          />
+        ))}
+      </RadioGroup>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Main Question Input */}
@@ -70,22 +115,7 @@ export const QuestionRenderer = ({
               );
 
             case 'radio':
-              return (
-                <RadioGroup
-                  value={value || ''}
-                  onValueChange={(val) => onAnswerChange(val)}
-                  className={hasError ? 'border-l-2 border-red-500 pl-2' : ''}
-                >
-                  {question.options?.map((option, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <RadioGroupItem value={option} id={`${question.id}-${index}`} />
-                      <Label htmlFor={`${question.id}-${index}`} className="text-lg">
-                        {option}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              );
+              return renderRadioOptions();
 
             case 'checkbox':
               return (
