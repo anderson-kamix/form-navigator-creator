@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, ArrowLeft } from 'lucide-react';
 import FormHeader from './form-builder/FormHeader';
+import FormCoverComponent from './form-builder/FormCover';
 import FormSectionComponent from './form-builder/FormSectionComponent';
 import { useFormBuilder } from '@/hooks/useFormBuilder';
 import { Link, useNavigate } from 'react-router-dom';
@@ -15,6 +16,8 @@ const FormEditor = () => {
     setFormTitle,
     formDescription,
     setFormDescription,
+    formCover,
+    updateCover,
     sections,
     addSection,
     updateSection,
@@ -80,6 +83,12 @@ const FormEditor = () => {
           setFormTitle={setFormTitle}
           formDescription={formDescription}
           setFormDescription={setFormDescription}
+        />
+
+        {/* Form Cover */}
+        <FormCoverComponent
+          cover={formCover}
+          updateCover={updateCover}
         />
 
         {/* Sections and Questions */}
