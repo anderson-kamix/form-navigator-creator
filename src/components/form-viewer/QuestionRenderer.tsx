@@ -133,6 +133,60 @@ export const QuestionRenderer = ({
     );
   };
 
+  const renderScoreQuestion = () => {
+    if (!question.scoreConfig) return null;
+    
+    const { leftLabel, rightLabel, maxScore, style, colorScheme } = question.scoreConfig;
+    const scoreValue = typeof value === 'number' ? value : 0;
+    
+    const getScoreItemClasses = (index: number) => {
+      const isSelected = scoreValue === index + 1;
+      const baseClass = 'flex items-center justify-center cursor-pointer transition-all duration-200';
+      const selectedClass = isSelected ? `bg-${colorScheme}-500 text-white` : `bg-${colorScheme}-100 hover:bg-${colorScheme}-200`;
+      
+      switch (style) {
+        case 'circles':
+          return `${baseClass} ${selectedClass} w-10 h-10 rounded-full`;
+        case 'squares':
+          return `${baseClass} ${selectedClass} w-10 h-10`;
+        case 'pills':
+          return `${baseClass} ${selectedClass} px-4 py-2 rounded-full`;
+        default: // numbered
+          return `${baseClass} ${selectedClass} w-10 h-10 rounded`;
+      }
+    };
+
+    return (
+      <div className={`mt-4 ${hasError ? 'border-l-4 border-red-500 pl-4' : ''}`}>
+        <div className="flex flex-col space-y-4">
+          <div className="flex justify-between">
+            <span className="text-sm">{leftLabel}</span>
+            <span className="text-sm">{rightLabel}</span>
+          </div>
+          
+          <div className="flex justify-between space-x-2">
+            {Array.from({ length: maxScore }).map((_, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => onAnswerChange(index + 1)}
+                className={getScoreItemClasses(index)}
+              >
+                {['numbered', 'pills'].includes(style) ? index + 1 : null}
+              </button>
+            ))}
+          </div>
+          
+          {scoreValue > 0 && (
+            <div className="mt-2 text-sm text-slate-600">
+              Nota selecionada: {scoreValue} de {maxScore}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Main Question Input */}
@@ -165,6 +219,9 @@ export const QuestionRenderer = ({
               
             case 'rating':
               return renderRatingQuestion();
+              
+            case 'score':
+              return renderScoreQuestion();
 
             case 'checkbox':
               return (

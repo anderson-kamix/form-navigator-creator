@@ -15,6 +15,7 @@ const questionTypes = [
   { value: 'radio', label: 'Múltipla Escolha' },
   { value: 'checkbox', label: 'Múltiplas Seleções' },
   { value: 'rating', label: 'Classificação (Estrelas)' },
+  { value: 'score', label: 'Nota (Personalizada)' },
 ];
 
 const QuestionTypeSelector: React.FC<QuestionTypeSelectorProps> = ({ value, onValueChange }) => {

@@ -1,13 +1,20 @@
 
 export interface Question {
   id: string;
-  type: 'text' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'rating';
+  type: 'text' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'rating' | 'score';
   title: string;
   options?: string[];
   required: boolean;
   allowAttachments?: boolean;
   ratingScale?: number;
   ratingIcon?: 'star' | 'heart' | 'thumbsUp' | 'circle' | 'square';
+  scoreConfig?: {
+    leftLabel: string;
+    rightLabel: string;
+    maxScore: number;
+    style: 'numbered' | 'circles' | 'squares' | 'pills';
+    colorScheme: 'blue' | 'green' | 'purple' | 'orange' | 'gray';
+  };
 }
 
 export interface FormSection {
