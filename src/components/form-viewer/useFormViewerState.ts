@@ -4,6 +4,11 @@ import { toast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { FormResponse } from '@/types/response';
 
+// Define a type that extends Question to include sectionId
+interface QuestionWithSection extends Question {
+  sectionId: string;
+}
+
 export interface Response {
   formId: string;
   answers: Record<string, any>;
@@ -20,7 +25,7 @@ export const useFormViewerState = (formId: string | undefined) => {
   const [attachments, setAttachments] = useState<Record<string, File | null>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
-  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [allQuestions, setAllQuestions] = useState<QuestionWithSection[]>([]);
   const [sections, setSections] = useState<FormSection[]>([]);
   const [currentSectionQuestions, setCurrentSectionQuestions] = useState<Question[]>([]);
   const [showCover, setShowCover] = useState(true);
@@ -45,6 +50,7 @@ export const useFormViewerState = (formId: string | undefined) => {
         }
         
         // Flatten all questions from all sections into a single array (for reference)
+        // Add the sectionId to each question
         const questions = formData.sections.flatMap(section => 
           section.questions.map(q => ({...q, sectionId: section.id}))
         );
