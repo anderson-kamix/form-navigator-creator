@@ -8,6 +8,7 @@ import Navigation from "./components/Navigation";
 import Dashboard from "./components/Dashboard";
 import FormBuilder from "./components/FormBuilder";
 import FormViewer from "./components/FormViewer";
+import FormManagement from "./components/FormManagement";
 import Statistics from "./components/Statistics";
 import NotFound from "./pages/NotFound";
 
@@ -26,6 +27,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/forms/new" element={<FormBuilder />} />
+                <Route path="/forms" element={<FormManagement />} />
                 <Route path="/forms/:id" element={<FormViewer />} />
                 <Route path="/statistics" element={<Statistics />} />
                 <Route path="*" element={<NotFound />} />

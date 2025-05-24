@@ -15,3 +15,15 @@ export interface FormSection {
   questions: Question[];
   isOpen: boolean;
 }
+
+export interface Form {
+  id: string;
+  title: string;
+  description?: string;
+  sections: FormSection[];
+  published: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  shareUrl?: string;
+}
+

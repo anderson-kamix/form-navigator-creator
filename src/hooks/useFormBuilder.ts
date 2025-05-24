@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { FormSection, Question } from '@/types/form';
+import { FormSection, Question, Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 
 export const useFormBuilder = () => {
@@ -115,13 +115,27 @@ export const useFormBuilder = () => {
       return;
     }
 
-    // Aqui você salvaria no banco de dados
-    console.log('Salvando formulário:', { formTitle, formDescription, sections });
+    const newForm: Form = {
+      id: Date.now().toString(),
+      title: formTitle,
+      description: formDescription,
+      sections: sections,
+      published: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      shareUrl: `${window.location.origin}/forms/${Date.now().toString()}`
+    };
+
+    // Simular salvar no banco de dados
+    const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
+    localStorage.setItem('forms', JSON.stringify([...existingForms, newForm]));
     
     toast({
       title: "Sucesso!",
       description: "Formulário criado com sucesso",
     });
+
+    return newForm;
   };
 
   return {
@@ -140,3 +154,4 @@ export const useFormBuilder = () => {
     saveForm
   };
 };
+
