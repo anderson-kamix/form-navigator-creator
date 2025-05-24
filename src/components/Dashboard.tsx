@@ -1,39 +1,54 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, FileText, BarChart3, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Form } from '@/types/form';
 
 const Dashboard = () => {
-  const [forms] = useState([
-    {
-      id: 1,
-      title: 'Pesquisa de Satisfação',
-      questions: 15,
-      responses: 234,
-      created: '2024-05-20',
-    },
-    {
-      id: 2,
-      title: 'Avaliação de Produto',
-      questions: 8,
-      responses: 67,
-      created: '2024-05-18',
-    },
-    {
-      id: 3,
-      title: 'Feedback de Evento',
-      questions: 12,
-      responses: 145,
-      created: '2024-05-15',
-    },
-  ]);
+  const [forms, setForms] = useState<Form[]>([]);
+  const [stats, setStats] = useState({
+    totalForms: 0,
+    totalResponses: 0,
+    completionRate: 0
+  });
 
-  const stats = [
-    { icon: FileText, label: 'Total de Formulários', value: '12', color: 'bg-blue-500' },
-    { icon: Users, label: 'Respostas Coletadas', value: '1,234', color: 'bg-green-500' },
-    { icon: BarChart3, label: 'Taxa de Conclusão', value: '87%', color: 'bg-purple-500' },
+  useEffect(() => {
+    // Carrega os formulários do localStorage
+    const storedForms = JSON.parse(localStorage.getItem('forms') || '[]');
+    setForms(storedForms);
+    
+    // Calcula estatísticas
+    let totalResponses = 0;
+    let formsWithResponses = 0;
+    
+    storedForms.forEach((form: Form) => {
+      const responses = JSON.parse(localStorage.getItem(`responses_${form.id}`) || '[]');
+      totalResponses += responses.length;
+      if (responses.length > 0) formsWithResponses++;
+    });
+    
+    const completionRate = storedForms.length > 0 
+      ? Math.round((formsWithResponses / storedForms.length) * 100) 
+      : 0;
+      
+    setStats({
+      totalForms: storedForms.length,
+      totalResponses,
+      completionRate
+    });
+  }, []);
+
+  // Ordena formulários por data de criação (mais recentes primeiro)
+  const recentForms = [...forms]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 3);
+
+  const statsItems = [
+    { icon: FileText, label: 'Total de Formulários', value: stats.totalForms.toString(), color: 'bg-blue-500' },
+    { icon: Users, label: 'Respostas Coletadas', value: stats.totalResponses.toString(), color: 'bg-green-500' },
+    { icon: BarChart3, label: 'Taxa de Conclusão', value: `${stats.completionRate}%`, color: 'bg-purple-500' },
   ];
 
   return (
@@ -45,7 +60,7 @@ const Dashboard = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {stats.map((stat, index) => {
+        {statsItems.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <Card key={index} className="p-6 hover:shadow-lg transition-shadow">
@@ -85,22 +100,34 @@ const Dashboard = () => {
       {/* Recent Forms */}
       <div>
         <h2 className="text-xl font-semibold text-slate-800 mb-4">Formulários Recentes</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {forms.map((form) => (
-            <Card key={form.id} className="p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group">
-              <Link to={`/forms/${form.id}`}>
-                <h3 className="text-lg font-semibold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">
-                  {form.title}
-                </h3>
-                <div className="space-y-2 text-sm text-slate-600">
-                  <p>{form.questions} questões</p>
-                  <p>{form.responses} respostas</p>
-                  <p>Criado em {new Date(form.created).toLocaleDateString('pt-BR')}</p>
-                </div>
-              </Link>
-            </Card>
-          ))}
-        </div>
+        {recentForms.length === 0 ? (
+          <Card className="p-6 text-center">
+            <p className="text-slate-600">Nenhum formulário encontrado. Crie seu primeiro formulário!</p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recentForms.map((form) => {
+              const responses = JSON.parse(localStorage.getItem(`responses_${form.id}`) || '[]');
+              const questionCount = form.sections.reduce((total, section) => total + section.questions.length, 0);
+              const formattedDate = new Date(form.createdAt).toLocaleDateString('pt-BR');
+              
+              return (
+                <Card key={form.id} className="p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group">
+                  <Link to={`/forms/${form.id}`}>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">
+                      {form.title}
+                    </h3>
+                    <div className="space-y-2 text-sm text-slate-600">
+                      <p>{questionCount} questões</p>
+                      <p>{responses.length} respostas</p>
+                      <p>Criado em {formattedDate}</p>
+                    </div>
+                  </Link>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
