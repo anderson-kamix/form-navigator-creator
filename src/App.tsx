@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navigation from "./components/Navigation";
 import Dashboard from "./components/Dashboard";
 import FormBuilder from "./components/FormBuilder";
+import FormEditor from "./components/FormEditor";
 import FormViewer from "./components/FormViewer";
 import FormManagement from "./components/FormManagement";
 import ResponseViewer from "./components/ResponseViewer";
@@ -29,6 +30,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/forms/new" element={<FormBuilder />} />
+                <Route path="/forms/:id/edit" element={<FormEditor />} />
                 <Route path="/forms" element={<FormManagement />} />
                 <Route path="/forms/:id" element={<FormViewer />} />
                 <Route path="/responses/:id" element={<ResponseViewer />} />

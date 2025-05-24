@@ -1,9 +1,10 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FormSection, Question, Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
+import { useParams, useNavigate } from 'react-router-dom';
 
-export const useFormBuilder = () => {
+export const useFormBuilder = (isEditing = false) => {
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [sections, setSections] = useState<FormSection[]>([
@@ -15,6 +16,35 @@ export const useFormBuilder = () => {
       isOpen: true
     }
   ]);
+  const [loading, setLoading] = useState(isEditing);
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isEditing && id) {
+      setLoading(true);
+      // Carregar dados do formulário do localStorage
+      const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
+      const formToEdit = existingForms.find((form: Form) => form.id === id);
+      
+      if (formToEdit) {
+        setFormTitle(formToEdit.title);
+        setFormDescription(formToEdit.description || '');
+        setSections(formToEdit.sections.map((section: FormSection) => ({
+          ...section,
+          isOpen: true // Abrir todas as seções por padrão na edição
+        })));
+      } else {
+        toast({
+          title: "Erro",
+          description: "Formulário não encontrado",
+          variant: "destructive",
+        });
+        navigate('/forms');
+      }
+      setLoading(false);
+    }
+  }, [isEditing, id, navigate]);
 
   const addSection = () => {
     const newSection: FormSection = {
@@ -115,27 +145,54 @@ export const useFormBuilder = () => {
       return;
     }
 
-    const newForm: Form = {
-      id: Date.now().toString(),
-      title: formTitle,
-      description: formDescription,
-      sections: sections,
-      published: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      shareUrl: `${window.location.origin}/forms/${Date.now().toString()}`
-    };
-
-    // Simular salvar no banco de dados
+    // Carregar formulários existentes
     const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
-    localStorage.setItem('forms', JSON.stringify([...existingForms, newForm]));
-    
-    toast({
-      title: "Sucesso!",
-      description: "Formulário criado com sucesso",
-    });
 
-    return newForm;
+    if (isEditing && id) {
+      // Atualizar formulário existente
+      const formIndex = existingForms.findIndex((form: Form) => form.id === id);
+      if (formIndex !== -1) {
+        const originalForm = existingForms[formIndex];
+        const updatedForm: Form = {
+          ...originalForm,
+          title: formTitle,
+          description: formDescription,
+          sections: sections,
+          updatedAt: new Date()
+        };
+        
+        existingForms[formIndex] = updatedForm;
+        localStorage.setItem('forms', JSON.stringify(existingForms));
+        
+        toast({
+          title: "Sucesso!",
+          description: "Formulário atualizado com sucesso",
+        });
+
+        return updatedForm;
+      }
+    } else {
+      // Criar novo formulário
+      const newForm: Form = {
+        id: Date.now().toString(),
+        title: formTitle,
+        description: formDescription,
+        sections: sections,
+        published: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        shareUrl: `${window.location.origin}/forms/${Date.now().toString()}`
+      };
+
+      localStorage.setItem('forms', JSON.stringify([...existingForms, newForm]));
+      
+      toast({
+        title: "Sucesso!",
+        description: "Formulário criado com sucesso",
+      });
+
+      return newForm;
+    }
   };
 
   return {
@@ -151,7 +208,8 @@ export const useFormBuilder = () => {
     addQuestion,
     updateQuestion,
     removeQuestion,
-    saveForm
+    saveForm,
+    loading,
+    isEditing
   };
 };
-
