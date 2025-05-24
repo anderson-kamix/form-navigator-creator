@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Form, Question } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
+import { FormResponse } from '@/types/response';
 
 export interface Response {
   formId: string;
@@ -158,7 +160,33 @@ export const useFormViewerState = (formId: string | undefined) => {
     return true;
   };
 
-  const submitForm = () => {
+  // Função para converter os anexos em Base64 para armazenamento
+  const convertAttachmentsToBase64 = async (): Promise<Record<string, string>> => {
+    const base64Attachments: Record<string, string> = {};
+    
+    const filePromises = Object.entries(attachments)
+      .filter(([_, file]) => file !== null)
+      .map(async ([questionId, file]) => {
+        if (file) {
+          const base64 = await convertFileToBase64(file);
+          base64Attachments[questionId] = base64;
+        }
+      });
+      
+    await Promise.all(filePromises);
+    return base64Attachments;
+  };
+  
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const submitForm = async () => {
     // Validate required fields
     if (totalQuestions === 0) {
       toast({
@@ -179,26 +207,56 @@ export const useFormViewerState = (formId: string | undefined) => {
       return;
     }
 
-    // Save response to localStorage
-    if (form) {
-      const newResponse: Response = {
-        formId: form.id,
-        answers: answers,
-        attachments: Object.fromEntries(
-          Object.entries(attachments)
-            .filter(([_, file]) => file !== null)
-            .map(([key, file]) => [key, (file as File).name])
-        ),
-        submittedAt: new Date()
-      };
+    try {
+      // Processar os anexos (converter para Base64)
+      const base64Attachments = await convertAttachmentsToBase64();
 
-      // Get existing responses
-      const existingResponses = JSON.parse(localStorage.getItem('form_responses') || '[]');
-      localStorage.setItem('form_responses', JSON.stringify([...existingResponses, newResponse]));
+      // Save response to localStorage
+      if (form) {
+        // Converter respostas para o formato esperado
+        const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
+          questionId,
+          answer
+        }));
+
+        const newResponse: FormResponse = {
+          id: uuidv4(),
+          formId: form.id,
+          answers: formattedAnswers,
+          submittedAt: new Date()
+        };
+
+        // Get existing responses
+        const existingResponses = JSON.parse(localStorage.getItem(`responses_${form.id}`) || '[]');
+        localStorage.setItem(`responses_${form.id}`, JSON.stringify([...existingResponses, newResponse]));
+
+        // Salvar os anexos separadamente (um objeto por questionId)
+        if (Object.keys(base64Attachments).length > 0) {
+          const existingAttachments = JSON.parse(localStorage.getItem(`attachments_${form.id}`) || '{}');
+          const updatedAttachments = {
+            ...existingAttachments,
+            [newResponse.id]: base64Attachments
+          };
+          
+          localStorage.setItem(`attachments_${form.id}`, JSON.stringify(updatedAttachments));
+        }
+
+        toast({
+          title: "Sucesso!",
+          description: "Formulário enviado com sucesso.",
+        });
+      }
+      
+      // Show success screen
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error("Erro ao enviar formulário:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao enviar o formulário. Tente novamente.",
+        variant: "destructive"
+      });
     }
-    
-    // Show success screen
-    setIsSubmitted(true);
   };
 
   const resetForm = () => {
