@@ -384,6 +384,17 @@ const FormViewer = () => {
     );
   };
 
+  // Function to reset the form for a new submission
+  const resetForm = () => {
+    setAnswers({});
+    setAttachments({});
+    setCurrentQuestion(0);
+    setCurrentSection(0);
+    setIsSubmitted(false);
+    setValidationErrors([]);
+    setShowCover(true);
+  };
+
   // Loading state
   if (loading) {
     return (
