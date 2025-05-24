@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Edit, Trash2, Share2, Copy, Eye, FileText } from 'lucide-react';
@@ -27,7 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Facebook, Linkedin, X, Share, Whatsapp } from 'lucide-react';
+import { Facebook, Linkedin, X, Share, MessageCircleMore } from 'lucide-react';
 
 const FormManagement = () => {
   const [forms, setForms] = useState<Form[]>([]);
@@ -278,7 +277,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                                 className="rounded-full p-2" 
                                 onClick={() => shareToSocialMedia('whatsapp', selectedForm?.shareUrl || "")}
                               >
-                                <Whatsapp className="h-5 w-5 text-green-500" />
+                                <MessageCircleMore className="h-5 w-5 text-green-500" />
                               </Button>
                             </div>
                           </div>
