@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Question } from '@/types/form';
@@ -69,7 +68,7 @@ export const FormContent: React.FC<FormContentProps> = ({
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 mb-2">{description || title}</h1>
-        {title && <p className="text-slate-600">{title}</p>}
+        {description && <p className="text-slate-600">{title}</p>}
       </div>
 
       {isDesktop ? (
@@ -139,7 +138,6 @@ export const FormContent: React.FC<FormContentProps> = ({
           </div>
         </div>
       ) : (
-        // Mobile layout
         <div className="space-y-8">
           {/* Progress Bar */}
           <div className="mb-8">
