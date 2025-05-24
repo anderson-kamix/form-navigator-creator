@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,13 +55,13 @@ export const QuestionRenderer = ({
           onValueChange={(val) => {
             if (val) onAnswerChange(val);
           }}
-          className="flex flex-wrap gap-2"
+          className="flex flex-col gap-2 w-full"
         >
           {question.options?.map((option, index) => (
             <ToggleGroupItem
               key={index}
               value={option}
-              className="rounded-full bg-white border px-4 py-2 data-[state=on]:bg-primary data-[state=on]:text-white"
+              className="w-full justify-start rounded-lg bg-white border px-4 py-2 data-[state=on]:bg-primary data-[state=on]:text-white"
             >
               {option}
             </ToggleGroupItem>
