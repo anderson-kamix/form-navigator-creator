@@ -30,7 +30,7 @@ export const SectionNavigation: React.FC<SectionNavigationProps> = ({
         <Accordion type="single" collapsible className="w-full" defaultValue="section">
           <AccordionItem value="section">
             <AccordionTrigger className="text-base font-medium">
-              Seções ({currentSection + 1}/{sections.length})
+              {sections[currentSection]?.title || "Seção"} ({currentSection + 1}/{sections.length})
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2 pt-2">
