@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Check, Paperclip, Camera, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Paperclip, Camera, CheckCircle2, ArrowRight, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Form, FormSection, Question } from '@/types/form';
@@ -464,14 +463,13 @@ const FormViewer = () => {
         Obrigado por dedicar seu tempo para responder nosso formulário. 
         Suas respostas foram registradas com sucesso.
       </p>
-      {!isEmbedded && (
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700" 
-          onClick={() => window.location.href = '/forms'}
-        >
-          Voltar para Formulários
-        </Button>
-      )}
+      <Button 
+        className="bg-blue-600 hover:bg-blue-700 flex items-center" 
+        onClick={resetForm}
+      >
+        <RefreshCw className="w-4 h-4 mr-2" />
+        Enviar novo formulário
+      </Button>
     </div>
   );
 
