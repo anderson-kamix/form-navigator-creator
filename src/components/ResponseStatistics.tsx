@@ -128,7 +128,7 @@ const ResponseStatistics = () => {
             <Button 
               variant="outline" 
               size="icon" 
-              onClick={() => navigate(`/forms/${id}`)}
+              onClick={() => navigate('/forms')}
               className="mr-4"
             >
               <ArrowLeft className="h-4 w-4" />
