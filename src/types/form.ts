@@ -16,10 +16,19 @@ export interface FormSection {
   isOpen: boolean;
 }
 
+export interface FormCover {
+  title: string;
+  description?: string;
+  buttonText: string;
+  alignment: 'left' | 'center';
+  coverImage?: string;
+}
+
 export interface Form {
   id: string;
   title: string;
   description?: string;
+  cover?: FormCover;
   sections: FormSection[];
   published: boolean;
   createdAt: Date;

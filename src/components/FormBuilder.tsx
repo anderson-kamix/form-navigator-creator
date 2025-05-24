@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import FormHeader from './form-builder/FormHeader';
+import FormCoverComponent from './form-builder/FormCover';
 import FormSectionComponent from './form-builder/FormSectionComponent';
 import { useFormBuilder } from '@/hooks/useFormBuilder';
 
@@ -12,6 +13,8 @@ const FormBuilder = () => {
     setFormTitle,
     formDescription,
     setFormDescription,
+    formCover,
+    updateCover,
     sections,
     addSection,
     updateSection,
@@ -37,6 +40,12 @@ const FormBuilder = () => {
           setFormTitle={setFormTitle}
           formDescription={formDescription}
           setFormDescription={setFormDescription}
+        />
+
+        {/* Form Cover */}
+        <FormCoverComponent
+          cover={formCover}
+          updateCover={updateCover}
         />
 
         {/* Sections and Questions */}

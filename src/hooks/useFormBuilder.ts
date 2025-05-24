@@ -1,12 +1,17 @@
-
 import { useState, useEffect } from 'react';
-import { FormSection, Question, Form } from '@/types/form';
+import { FormSection, Question, Form, FormCover } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 
 export const useFormBuilder = (isEditing = false) => {
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [formCover, setFormCover] = useState<FormCover>({
+    title: 'Olá!',
+    description: '',
+    buttonText: 'Vamos começar',
+    alignment: 'left'
+  });
   const [sections, setSections] = useState<FormSection[]>([
     {
       id: Date.now().toString(),
@@ -30,6 +35,9 @@ export const useFormBuilder = (isEditing = false) => {
       if (formToEdit) {
         setFormTitle(formToEdit.title);
         setFormDescription(formToEdit.description || '');
+        if (formToEdit.cover) {
+          setFormCover(formToEdit.cover);
+        }
         setSections(formToEdit.sections.map((section: FormSection) => ({
           ...section,
           isOpen: true // Abrir todas as seções por padrão na edição
@@ -45,6 +53,10 @@ export const useFormBuilder = (isEditing = false) => {
       setLoading(false);
     }
   }, [isEditing, id, navigate]);
+
+  const updateCover = (updates: Partial<FormCover>) => {
+    setFormCover(prev => ({ ...prev, ...updates }));
+  };
 
   const addSection = () => {
     const newSection: FormSection = {
@@ -157,6 +169,7 @@ export const useFormBuilder = (isEditing = false) => {
           ...originalForm,
           title: formTitle,
           description: formDescription,
+          cover: formCover,
           sections: sections,
           updatedAt: new Date()
         };
@@ -177,6 +190,7 @@ export const useFormBuilder = (isEditing = false) => {
         id: Date.now().toString(),
         title: formTitle,
         description: formDescription,
+        cover: formCover,
         sections: sections,
         published: false,
         createdAt: new Date(),
@@ -200,6 +214,8 @@ export const useFormBuilder = (isEditing = false) => {
     setFormTitle,
     formDescription,
     setFormDescription,
+    formCover,
+    updateCover,
     sections,
     addSection,
     updateSection,
