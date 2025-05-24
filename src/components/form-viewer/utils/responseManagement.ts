@@ -25,6 +25,8 @@ export const updateResponse = (
       return false;
     }
     
+    console.log("Updating response at index", responseIndex, "with answers:", updatedAnswers);
+    
     // Update the response
     responses[responseIndex] = {
       ...responses[responseIndex],

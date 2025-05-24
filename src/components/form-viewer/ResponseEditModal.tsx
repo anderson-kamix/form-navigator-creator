@@ -30,6 +30,7 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
   // Update form values when response changes
   React.useEffect(() => {
     if (response) {
+      console.log("Setting form values from response:", response.answers);
       form.reset({ answers: response.answers });
     }
   }, [response, form]);
@@ -73,6 +74,7 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             {questions.map((question) => {
               const questionId = question.id;
+              const value = form.watch(`answers.${questionId}`);
               
               return (
                 <FormField

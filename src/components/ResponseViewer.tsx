@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Form } from '@/types/form';
@@ -98,6 +97,7 @@ const ResponseViewer = () => {
   };
 
   const handleEditClick = (response: Response) => {
+    console.log("Opening edit modal with response:", response);
     setSelectedResponse(response);
     setIsEditModalOpen(true);
   };
