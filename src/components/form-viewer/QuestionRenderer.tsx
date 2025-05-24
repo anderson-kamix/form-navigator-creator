@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Camera, AlertCircle } from 'lucide-react';
+import { Paperclip, Camera, AlertCircle, X } from 'lucide-react';
 import { Question } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 
@@ -30,6 +30,18 @@ export const QuestionRenderer = ({
   onFileChange,
   onCapturePhoto
 }: QuestionRendererProps) => {
+  // Create a URL for the attachment preview
+  const previewUrl = attachment ? URL.createObjectURL(attachment) : null;
+  
+  // Clean up the object URL when the component unmounts or when the attachment changes
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   return (
     <div className="space-y-6">
       {/* Main Question Input */}
@@ -139,60 +151,100 @@ export const QuestionRenderer = ({
           <div className="flex flex-col space-y-4">
             <h3 className="text-sm font-medium text-slate-700">Anexos</h3>
             
-            <div className="flex flex-wrap gap-4">
-              <div>
-                <input
-                  type="file"
-                  id={`file-${question.id}`}
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      onFileChange(e.target.files[0]);
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => document.getElementById(`file-${question.id}`)?.click()}
-                  className="flex items-center"
-                >
-                  <Paperclip className="w-4 h-4 mr-2" />
-                  Anexar arquivo
-                </Button>
+            {/* File/Photo Preview */}
+            {attachment && previewUrl && (
+              <div className="mb-4">
+                <div className="relative">
+                  {attachment.type.startsWith('image/') ? (
+                    <div className="relative rounded-lg overflow-hidden border border-slate-200">
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="max-h-64 w-auto object-contain mx-auto"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onFileChange(null)}
+                        className="absolute top-2 right-2 bg-slate-800 bg-opacity-50 text-white rounded-full h-8 w-8 p-1 hover:bg-slate-900"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 border rounded p-4 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Paperclip className="w-5 h-5 text-slate-500 mr-2" />
+                        <span className="text-sm truncate max-w-[200px]">{attachment.name}</span>
+                        <span className="text-xs text-slate-500 ml-2">
+                          ({(attachment.size / 1024).toFixed(0)} KB)
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onFileChange(null)}
+                        className="text-red-500 h-auto py-1 px-2"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-              
-              <div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onCapturePhoto}
-                  className="flex items-center"
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  Capturar foto
-                </Button>
-              </div>
-            </div>
-
-            {attachment && (
-              <div className="mt-2">
-                <div className="bg-slate-50 border rounded p-2 flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Paperclip className="w-4 h-4 text-slate-500 mr-2" />
-                    <span className="text-sm truncate max-w-[200px]">{attachment.name}</span>
-                  </div>
+            )}
+            
+            {!attachment && (
+              <div className="flex flex-wrap gap-4">
+                <div>
+                  <input
+                    type="file"
+                    id={`file-${question.id}`}
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        onFileChange(e.target.files[0]);
+                      }
+                    }}
+                  />
                   <Button
-                    variant="ghost"
+                    type="button"
+                    variant="outline"
                     size="sm"
-                    onClick={() => onFileChange(null)}
-                    className="text-red-500 h-auto py-1 px-2"
+                    onClick={() => document.getElementById(`file-${question.id}`)?.click()}
+                    className="flex items-center"
                   >
-                    Remover
+                    <Paperclip className="w-4 h-4 mr-2" />
+                    Anexar arquivo
                   </Button>
                 </div>
+                
+                <div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onCapturePhoto}
+                    className="flex items-center"
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Capturar foto
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {attachment && (
+              <div className="mt-2 flex justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onFileChange(null)}
+                  className="text-red-500 flex items-center"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Remover {attachment.type.startsWith('image/') ? 'imagem' : 'arquivo'}
+                </Button>
               </div>
             )}
           </div>
