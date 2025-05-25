@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, Trash2, Share2, Copy, Eye, FileText, BarChart, List } from 'lucide-react';
-import { Form } from '@/types/form';
+import { Edit, Trash2, Share2, Copy, Eye, FileText, BarChart, List, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -26,58 +25,130 @@ import {
   Badge
 } from '@/components/ui/badge';
 import { Facebook, Linkedin, X, Share, MessageCircleMore } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import FormPermissionsModal from './FormPermissionsModal';
+
+interface Form {
+  id: string;
+  title: string;
+  description: string;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
 
 const FormManagement = () => {
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [responseCounts, setResponseCounts] = useState<{[key: string]: number}>({});
+  const [loading, setLoading] = useState(true);
+  const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
+  const [selectedFormForPermissions, setSelectedFormForPermissions] = useState<Form | null>(null);
+  const { user, isMasterAdmin } = useAuth();
 
   useEffect(() => {
-    // Carregar formulários do localStorage
-    const storedForms = JSON.parse(localStorage.getItem('forms') || '[]');
-    setForms(storedForms);
-    
-    // Carregar contagem de respostas para cada formulário
-    const counts: {[key: string]: number} = {};
-    storedForms.forEach((form: Form) => {
-      const responses = JSON.parse(localStorage.getItem(`responses_${form.id}`) || '[]');
-      counts[form.id] = responses.length;
-    });
-    setResponseCounts(counts);
+    loadForms();
   }, []);
 
-  const togglePublishStatus = (formId: string) => {
-    const updatedForms = forms.map(form => {
-      if (form.id === formId) {
-        return {
-          ...form,
-          published: !form.published,
-          updatedAt: new Date()
-        };
+  const loadForms = async () => {
+    try {
+      const { data: formsData, error } = await supabase
+        .from('forms')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setForms(formsData || []);
+      
+      // Carregar contagem de respostas para cada formulário
+      const counts: {[key: string]: number} = {};
+      for (const form of formsData || []) {
+        const { count, error: countError } = await supabase
+          .from('form_responses')
+          .select('*', { count: 'exact', head: true })
+          .eq('form_id', form.id);
+
+        if (!countError) {
+          counts[form.id] = count || 0;
+        }
       }
-      return form;
-    });
-
-    setForms(updatedForms);
-    localStorage.setItem('forms', JSON.stringify(updatedForms));
-
-    const form = updatedForms.find(f => f.id === formId);
-    toast({
-      title: form?.published ? 'Formulário Publicado' : 'Formulário em Rascunho',
-      description: form?.published
-        ? 'O formulário agora está disponível para receber respostas.'
-        : 'O formulário não está mais aceitando respostas.',
-    });
+      setResponseCounts(counts);
+    } catch (error) {
+      console.error('Erro ao carregar formulários:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os formulários",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteForm = (formId: string) => {
-    const updatedForms = forms.filter(form => form.id !== formId);
-    setForms(updatedForms);
-    localStorage.setItem('forms', JSON.stringify(updatedForms));
-    toast({
-      title: 'Formulário Excluído',
-      description: 'O formulário foi removido permanentemente.',
-    });
+  const togglePublishStatus = async (formId: string) => {
+    try {
+      const form = forms.find(f => f.id === formId);
+      if (!form) return;
+
+      const newPublishedStatus = !form.published;
+      
+      const { error } = await supabase
+        .from('forms')
+        .update({ 
+          published: newPublishedStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setForms(prev => prev.map(f => 
+        f.id === formId 
+          ? { ...f, published: newPublishedStatus, updated_at: new Date().toISOString() }
+          : f
+      ));
+
+      toast({
+        title: newPublishedStatus ? 'Formulário Publicado' : 'Formulário em Rascunho',
+        description: newPublishedStatus
+          ? 'O formulário agora está disponível para receber respostas.'
+          : 'O formulário não está mais aceitando respostas.',
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o status do formulário",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteForm = async (formId: string) => {
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .delete()
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setForms(prev => prev.filter(f => f.id !== formId));
+      toast({
+        title: 'Formulário Excluído',
+        description: 'O formulário foi removido permanentemente.',
+      });
+    } catch (error) {
+      console.error('Erro ao excluir formulário:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o formulário",
+        variant: "destructive",
+      });
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -111,7 +182,7 @@ const FormManagement = () => {
     window.open(shareUrl, '_blank');
   };
 
-  const formatDate = (date: Date | string) => {
+  const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -119,22 +190,52 @@ const FormManagement = () => {
     });
   };
 
+  const getShareUrl = (formId: string) => {
+    return `${window.location.origin}/forms/${formId}`;
+  };
+
   const getEmbedCode = (formId: string) => {
-    const form = forms.find(f => f.id === formId);
-    if (!form) return '';
-    
-    const withLogo = "1"; // Opção para mostrar logo
+    const shareUrl = getShareUrl(formId);
+    const withLogo = "1";
     return `<iframe width="100%" height="850" 
-src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="allow-scripts allow-top-navigation allow-forms allow-same-origin allow-popups" allowfullscreen>
+src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="allow-scripts allow-top-navigation allow-forms allow-same-origin allow-popups" allowfullscreen>
 </iframe>`;
   };
+
+  const canEdit = (form: Form) => {
+    return isMasterAdmin || form.user_id === user?.id;
+  };
+
+  const canManagePermissions = (form: Form) => {
+    return form.user_id === user?.id;
+  };
+
+  const openPermissionsModal = (form: Form) => {
+    setSelectedFormForPermissions(form);
+    setPermissionsModalOpen(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="text-center">Carregando formulários...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Meus Formulários</h1>
-          <p className="text-slate-600">Gerenciamento dos seus formulários e coleta de respostas</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">
+            {isMasterAdmin ? 'Todos os Formulários' : 'Meus Formulários'}
+          </h1>
+          <p className="text-slate-600">
+            {isMasterAdmin 
+              ? 'Visualização completa de todos os formulários do sistema'
+              : 'Gerenciamento dos seus formulários e coleta de respostas'
+            }
+          </p>
         </div>
         <Button asChild>
           <Link to="/forms/new">
@@ -148,7 +249,12 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
         <div className="text-center p-10 bg-slate-50 rounded-lg border border-slate-200">
           <FileText className="h-12 w-12 mx-auto text-slate-400 mb-4" />
           <h3 className="text-xl font-semibold text-slate-700 mb-2">Nenhum formulário encontrado</h3>
-          <p className="text-slate-600 mb-6">Você ainda não criou nenhum formulário. Crie seu primeiro formulário agora.</p>
+          <p className="text-slate-600 mb-6">
+            {isMasterAdmin 
+              ? 'Ainda não há formulários criados no sistema.'
+              : 'Você ainda não criou nenhum formulário. Crie seu primeiro formulário agora.'
+            }
+          </p>
           <Button asChild>
             <Link to="/forms/new">Criar Novo Formulário</Link>
           </Button>
@@ -159,6 +265,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
             <TableHeader>
               <TableRow>
                 <TableHead>Nome do Formulário</TableHead>
+                <TableHead>Criador</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Respostas</TableHead>
                 <TableHead>Data de Criação</TableHead>
@@ -170,11 +277,19 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
               {forms.map((form) => (
                 <TableRow key={form.id}>
                   <TableCell className="font-medium">{form.title}</TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {isMasterAdmin ? (
+                      form.user_id === user?.id ? 'Você' : 'Outro usuário'
+                    ) : (
+                      'Você'
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <Switch
                         checked={form.published}
                         onCheckedChange={() => togglePublishStatus(form.id)}
+                        disabled={!canEdit(form)}
                       />
                       <span className={form.published ? "text-green-600" : "text-amber-600"}>
                         {form.published ? "Publicado" : "Rascunho"}
@@ -186,8 +301,8 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                       {responseCounts[form.id] || 0}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDate(form.createdAt)}</TableCell>
-                  <TableCell>{formatDate(form.updatedAt)}</TableCell>
+                  <TableCell>{formatDate(form.created_at)}</TableCell>
+                  <TableCell>{formatDate(form.updated_at)}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <Button variant="outline" size="sm" asChild>
@@ -195,11 +310,13 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                           <Eye className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/forms/${form.id}/edit`} title="Editar">
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
+                      {canEdit(form) && (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/forms/${form.id}/edit`} title="Editar">
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" asChild>
                         <Link to={`/responses/${form.id}`} title="Ver Respostas">
                           <List className="h-4 w-4" />
@@ -210,6 +327,16 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                           <BarChart className="h-4 w-4" />
                         </Link>
                       </Button>
+                      {canManagePermissions(form) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => openPermissionsModal(form)}
+                          title="Gerenciar Permissões"
+                        >
+                          <Users className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Sheet>
                         <SheetTrigger asChild>
                           <Button 
@@ -226,7 +353,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                           <SheetHeader>
                             <SheetTitle>Compartilhar</SheetTitle>
                             <SheetDescription>
-                              Compartilhe o link do seu formulário nas redes sociais ou copie o código para incorporar em seu site.
+                              Compartilhe o link do formulário nas redes sociais ou copie o código para incorporar em seu site.
                             </SheetDescription>
                           </SheetHeader>
                           
@@ -236,13 +363,13 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                               <input 
                                 type="text" 
                                 readOnly 
-                                value={selectedForm?.shareUrl || ""} 
+                                value={selectedForm ? getShareUrl(selectedForm.id) : ""} 
                                 className="flex-1 p-2 text-sm border rounded-l-md focus:outline-none"
                               />
                               <Button 
                                 variant="default" 
                                 className="rounded-l-none" 
-                                onClick={() => copyToClipboard(selectedForm?.shareUrl || "")}
+                                onClick={() => copyToClipboard(selectedForm ? getShareUrl(selectedForm.id) : "")}
                               >
                                 <Copy className="h-4 w-4 mr-2" />
                                 Copiar Link
@@ -275,7 +402,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                                 variant="outline" 
                                 size="sm" 
                                 className="rounded-full p-2" 
-                                onClick={() => shareToSocialMedia('facebook', selectedForm?.shareUrl || "")}
+                                onClick={() => shareToSocialMedia('facebook', selectedForm ? getShareUrl(selectedForm.id) : "")}
                               >
                                 <Facebook className="h-5 w-5 text-blue-600" />
                               </Button>
@@ -283,7 +410,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                                 variant="outline" 
                                 size="sm" 
                                 className="rounded-full p-2" 
-                                onClick={() => shareToSocialMedia('twitter', selectedForm?.shareUrl || "")}
+                                onClick={() => shareToSocialMedia('twitter', selectedForm ? getShareUrl(selectedForm.id) : "")}
                               >
                                 <X className="h-5 w-5 text-black" />
                               </Button>
@@ -291,7 +418,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                                 variant="outline" 
                                 size="sm" 
                                 className="rounded-full p-2" 
-                                onClick={() => shareToSocialMedia('linkedin', selectedForm?.shareUrl || "")}
+                                onClick={() => shareToSocialMedia('linkedin', selectedForm ? getShareUrl(selectedForm.id) : "")}
                               >
                                 <Linkedin className="h-5 w-5 text-blue-700" />
                               </Button>
@@ -299,7 +426,7 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                                 variant="outline" 
                                 size="sm" 
                                 className="rounded-full p-2" 
-                                onClick={() => shareToSocialMedia('whatsapp', selectedForm?.shareUrl || "")}
+                                onClick={() => shareToSocialMedia('whatsapp', selectedForm ? getShareUrl(selectedForm.id) : "")}
                               >
                                 <MessageCircleMore className="h-5 w-5 text-green-500" />
                               </Button>
@@ -307,15 +434,17 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
                           </div>
                         </SheetContent>
                       </Sheet>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteForm(form.id)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit(form) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteForm(form.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -323,6 +452,15 @@ src="${form.shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sand
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {selectedFormForPermissions && (
+        <FormPermissionsModal
+          open={permissionsModalOpen}
+          onOpenChange={setPermissionsModalOpen}
+          formId={selectedFormForPermissions.id}
+          formTitle={selectedFormForPermissions.title}
+        />
       )}
     </div>
   );

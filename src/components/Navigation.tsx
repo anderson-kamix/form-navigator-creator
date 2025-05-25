@@ -2,12 +2,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { FileText, BarChart3, Home, LogOut } from 'lucide-react';
+import { FileText, BarChart3, Home, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { Badge } from '@/components/ui/badge';
 
 const Navigation = () => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, userProfile, signOut, isMasterAdmin } = useAuth();
 
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path);
@@ -49,9 +50,17 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">
-              Olá, {user?.email}
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">
+                Olá, {user?.email}
+              </span>
+              {isMasterAdmin && (
+                <Badge variant="secondary" className="flex items-center">
+                  <Shield className="w-3 h-3 mr-1" />
+                  Admin Master
+                </Badge>
+              )}
+            </div>
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-2" />
               Sair
