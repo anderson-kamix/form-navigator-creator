@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { FormSection, Question, Form, FormCover } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
@@ -82,10 +83,10 @@ export const useFormBuilder = (isEditing = false) => {
               ratingScale: q.rating_scale || undefined,
               ratingIcon: q.rating_icon as Question['ratingIcon'] || undefined,
               scoreConfig: q.score_config as Question['scoreConfig'] || undefined,
-              conditionalLogic: q.conditional_logic as Question['conditionalLogic'] || undefined,
+              conditionalLogic: (q.conditional_logic as unknown as Question['conditionalLogic']) || undefined,
             })),
             isOpen: true,
-            conditionalLogic: section.conditional_logic as FormSection['conditionalLogic'] || undefined,
+            conditionalLogic: (section.conditional_logic as unknown as FormSection['conditionalLogic']) || undefined,
           };
         })
       );
@@ -93,7 +94,7 @@ export const useFormBuilder = (isEditing = false) => {
       setFormTitle(form.title);
       setFormDescription(form.description || '');
       if (form.cover) {
-        setFormCover(form.cover as FormCover);
+        setFormCover(form.cover as unknown as FormCover);
       }
       setSections(sectionsWithQuestions);
     } catch (error) {
@@ -229,7 +230,7 @@ export const useFormBuilder = (isEditing = false) => {
           .update({
             title: formTitle,
             description: formDescription,
-            cover: formCover,
+            cover: formCover as any,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id);
@@ -255,7 +256,7 @@ export const useFormBuilder = (isEditing = false) => {
           .insert({
             title: formTitle,
             description: formDescription,
-            cover: formCover,
+            cover: formCover as any,
             user_id: user.id,
             published: false,
           })
@@ -296,7 +297,7 @@ export const useFormBuilder = (isEditing = false) => {
           title: section.title,
           description: section.description,
           order_index: sectionIndex,
-          conditional_logic: section.conditionalLogic,
+          conditional_logic: section.conditionalLogic as any,
         })
         .select()
         .single();
@@ -313,13 +314,13 @@ export const useFormBuilder = (isEditing = false) => {
             section_id: newSection.id,
             type: question.type,
             title: question.title,
-            options: question.options,
+            options: question.options as any,
             required: question.required,
             allow_attachments: question.allowAttachments,
             rating_scale: question.ratingScale,
             rating_icon: question.ratingIcon,
-            score_config: question.scoreConfig,
-            conditional_logic: question.conditionalLogic,
+            score_config: question.scoreConfig as any,
+            conditional_logic: question.conditionalLogic as any,
             order_index: questionIndex,
           });
 
