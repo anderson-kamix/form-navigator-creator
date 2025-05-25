@@ -1,16 +1,18 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, ChevronUp, Plus, Trash2, GripVertical } from 'lucide-react';
 import { FormSection, Question } from '@/types/form';
 import QuestionItem from './QuestionItem';
 
 interface FormSectionComponentProps {
   section: FormSection;
+  allSections: FormSection[];
   updateSection: (sectionId: string, updates: Partial<FormSection>) => void;
   removeSection: (sectionId: string) => void;
   toggleSection: (sectionId: string) => void;
@@ -19,83 +21,125 @@ interface FormSectionComponentProps {
   removeQuestion: (sectionId: string, questionId: string) => void;
 }
 
-const FormSectionComponent: React.FC<FormSectionComponentProps> = ({ 
-  section, 
-  updateSection, 
-  removeSection, 
-  toggleSection, 
-  addQuestion, 
-  updateQuestion, 
-  removeQuestion 
+const FormSectionComponent: React.FC<FormSectionComponentProps> = ({
+  section,
+  allSections,
+  updateSection,
+  removeSection,
+  toggleSection,
+  addQuestion,
+  updateQuestion,
+  removeQuestion
 }) => {
+  // Flatten all questions from all sections for conditional logic
+  const allQuestions = allSections.flatMap(s => s.questions);
+
   return (
-    <Card key={section.id} className="p-6 border-l-4 border-l-blue-500">
-      {/* Section Header */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="p-0 h-8 w-8"
-              onClick={() => toggleSection(section.id)}
-            >
-              {section.isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-            </Button>
-            <h3 className="text-lg font-medium">
-              <Input
-                value={section.title}
-                onChange={(e) => updateSection(section.id, { title: e.target.value })}
-                placeholder="Título da Seção"
-                className="text-lg font-semibold border-0 p-0 h-auto focus-visible:ring-0 bg-transparent"
-              />
-            </h3>
+    <Card className="overflow-hidden">
+      <Collapsible open={section.isOpen} onOpenChange={() => toggleSection(section.id)}>
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between p-6 bg-slate-50 hover:bg-slate-100 cursor-pointer">
+            <div className="flex items-center space-x-3">
+              <GripVertical className="w-5 h-5 text-slate-400" />
+              <div>
+                <h3 className="font-semibold text-slate-800">
+                  {section.title || 'Nova seção'}
+                </h3>
+                <p className="text-sm text-slate-600">
+                  {section.questions.length} pergunta(s)
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeSection(section.id);
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+              {section.isOpen ? (
+                <ChevronUp className="w-5 h-5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-slate-400" />
+              )}
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => removeSection(section.id)}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-        <div className="pl-10 pr-8 mt-2">
-          <Textarea
-            value={section.description || ''}
-            onChange={(e) => updateSection(section.id, { description: e.target.value })}
-            placeholder="Descrição da seção (opcional)"
-            className="min-h-8 resize-none mt-1 text-sm"
-          />
-        </div>
-      </div>
+        </CollapsibleTrigger>
 
-      <Collapsible open={section.isOpen} onOpenChange={(isOpen) => updateSection(section.id, { isOpen })}>
         <CollapsibleContent>
-          {/* Questions */}
-          <div className="space-y-4 mb-4 pl-8">
-            {section.questions.map((question, index) => (
-              <QuestionItem
-                key={question.id}
-                question={question}
-                index={index}
-                sectionId={section.id}
-                onUpdate={updateQuestion}
-                onRemove={removeQuestion}
-              />
-            ))}
-          </div>
+          <div className="p-6 space-y-6">
+            {/* Section Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Título da Seção</Label>
+                <Input
+                  value={section.title}
+                  onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                  placeholder="Nome da seção"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Descrição (opcional)</Label>
+                <Textarea
+                  value={section.description || ''}
+                  onChange={(e) => updateSection(section.id, { description: e.target.value })}
+                  placeholder="Descrição da seção"
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
+            </div>
 
-          {/* Add Question Button */}
-          <div className="mt-4 pl-8">
-            <Button
-              variant="outline"
-              onClick={() => addQuestion(section.id)}
-              className="border-blue-200 text-blue-600 hover:bg-blue-50"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Questão
-            </Button>
+            {/* Questions */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-slate-700">Perguntas</h4>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addQuestion(section.id)}
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Pergunta
+                </Button>
+              </div>
+
+              {section.questions.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <p>Nenhuma pergunta adicionada ainda.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addQuestion(section.id)}
+                    className="mt-2"
+                  >
+                    Adicionar primeira pergunta
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {section.questions.map((question, index) => (
+                    <QuestionItem
+                      key={question.id}
+                      question={question}
+                      index={index}
+                      sectionId={section.id}
+                      allQuestions={allQuestions}
+                      allSections={allSections}
+                      onUpdate={updateQuestion}
+                      onRemove={removeQuestion}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>

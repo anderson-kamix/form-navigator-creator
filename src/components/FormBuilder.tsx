@@ -54,6 +54,7 @@ const FormBuilder = () => {
             <FormSectionComponent
               key={section.id}
               section={section}
+              allSections={sections}
               updateSection={updateSection}
               removeSection={removeSection}
               toggleSection={toggleSection}
