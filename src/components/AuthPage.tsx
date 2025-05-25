@@ -35,31 +35,43 @@ const AuthPage = () => {
     setLoading(true);
     setError('');
 
+    console.log('Tentando fazer login com:', { email: loginEmail });
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password: loginPassword,
       });
 
+      console.log('Resposta do login:', { data, error });
+
       if (error) {
+        console.error('Erro de login:', error);
+        
         if (error.message.includes('Invalid login credentials')) {
           setError('Email ou senha incorretos. Verifique suas credenciais.');
         } else if (error.message.includes('Email not confirmed')) {
           setError('Por favor, confirme seu email antes de fazer login.');
+        } else if (error.message.includes('Too many requests')) {
+          setError('Muitas tentativas de login. Aguarde alguns minutos e tente novamente.');
         } else {
-          setError(error.message);
+          setError(`Erro: ${error.message}`);
         }
         return;
       }
 
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao sistema de formulários.",
-      });
+      if (data.user) {
+        console.log('Login bem-sucedido:', data.user);
+        
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Bem-vindo ao sistema de formulários.",
+        });
 
-      navigate('/dashboard');
+        navigate('/dashboard');
+      }
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('Erro inesperado no login:', error);
       setError('Ocorreu um erro inesperado. Tente novamente.');
     } finally {
       setLoading(false);
@@ -126,6 +138,14 @@ const AuthPage = () => {
           
           <div className="mt-6 text-center text-sm text-gray-600">
             <p>Para criar uma conta, entre em contato com o administrador.</p>
+          </div>
+          
+          <div className="mt-4 p-3 bg-blue-50 rounded-md">
+            <p className="text-sm text-blue-800">
+              <strong>Para teste:</strong><br/>
+              Email: contato@augurisaude.com.br<br/>
+              Senha: 123456
+            </p>
           </div>
         </CardContent>
       </Card>
