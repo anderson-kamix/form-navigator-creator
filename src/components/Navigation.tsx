@@ -1,53 +1,63 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Plus, BarChart3, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FileText, BarChart3, Home, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Navigation = () => {
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', path: '/' },
-    { icon: Plus, label: 'Novo Formulário', path: '/forms/new' },
-    { icon: FileText, label: 'Formulários', path: '/forms' },
-    { icon: BarChart3, label: 'Estatísticas', path: '/statistics' },
-  ];
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path);
+  };
 
   return (
-    <nav className="fixed left-0 top-0 h-full w-64 bg-white shadow-xl border-r border-slate-200 z-50">
-      <div className="p-6">
-        <div className="flex items-center space-x-3 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-            <FileText className="w-6 h-6 text-white" />
+    <nav className="bg-white shadow-sm border-b">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <Link to="/dashboard" className="text-xl font-bold text-blue-600">
+                Sistema de Formulários
+              </Link>
+            </div>
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <Link
+                to="/dashboard"
+                className={`${
+                  isActive('/dashboard')
+                    ? 'border-blue-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Dashboard
+              </Link>
+              <Link
+                to="/forms"
+                className={`${
+                  isActive('/forms')
+                    ? 'border-blue-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Formulários
+              </Link>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">FormBuilder</h1>
-            <p className="text-sm text-slate-500">Criador de Formulários</p>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600">
+              Olá, {user?.email}
+            </span>
+            <Button variant="outline" size="sm" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
           </div>
         </div>
-
-        <ul className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-            
-            return (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
       </div>
     </nav>
   );

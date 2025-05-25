@@ -1,8 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { FormSection, Question, Form, FormCover } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useFormBuilder = (isEditing = false) => {
   const [formTitle, setFormTitle] = useState('');
@@ -25,35 +26,88 @@ export const useFormBuilder = (isEditing = false) => {
   const [loading, setLoading] = useState(isEditing);
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (isEditing && id) {
-      setLoading(true);
-      // Carregar dados do formulário do localStorage
-      const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
-      const formToEdit = existingForms.find((form: Form) => form.id === id);
-      
-      if (formToEdit) {
-        setFormTitle(formToEdit.title);
-        setFormDescription(formToEdit.description || '');
-        if (formToEdit.cover) {
-          setFormCover(formToEdit.cover);
-        }
-        setSections(formToEdit.sections.map((section: FormSection) => ({
-          ...section,
-          isOpen: true // Abrir todas as seções por padrão na edição
-        })));
-      } else {
-        toast({
-          title: "Erro",
-          description: "Formulário não encontrado",
-          variant: "destructive",
-        });
-        navigate('/forms');
+      loadFormFromSupabase();
+    }
+  }, [isEditing, id]);
+
+  const loadFormFromSupabase = async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    try {
+      // Load form data
+      const { data: form, error: formError } = await supabase
+        .from('forms')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (formError) throw formError;
+
+      // Load sections
+      const { data: sectionsData, error: sectionsError } = await supabase
+        .from('form_sections')
+        .select('*')
+        .eq('form_id', id)
+        .order('order_index');
+
+      if (sectionsError) throw sectionsError;
+
+      // Load questions for each section
+      const sectionsWithQuestions = await Promise.all(
+        sectionsData.map(async (section) => {
+          const { data: questions, error: questionsError } = await supabase
+            .from('questions')
+            .select('*')
+            .eq('section_id', section.id)
+            .order('order_index');
+
+          if (questionsError) throw questionsError;
+
+          return {
+            id: section.id,
+            title: section.title,
+            description: section.description || '',
+            questions: questions.map(q => ({
+              id: q.id,
+              type: q.type as Question['type'],
+              title: q.title,
+              options: q.options as string[] || undefined,
+              required: q.required || false,
+              allowAttachments: q.allow_attachments || false,
+              ratingScale: q.rating_scale || undefined,
+              ratingIcon: q.rating_icon as Question['ratingIcon'] || undefined,
+              scoreConfig: q.score_config as Question['scoreConfig'] || undefined,
+              conditionalLogic: q.conditional_logic as Question['conditionalLogic'] || undefined,
+            })),
+            isOpen: true,
+            conditionalLogic: section.conditional_logic as FormSection['conditionalLogic'] || undefined,
+          };
+        })
+      );
+
+      setFormTitle(form.title);
+      setFormDescription(form.description || '');
+      if (form.cover) {
+        setFormCover(form.cover as FormCover);
       }
+      setSections(sectionsWithQuestions);
+    } catch (error) {
+      console.error('Erro ao carregar formulário:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar o formulário",
+        variant: "destructive",
+      });
+      navigate('/forms');
+    } finally {
       setLoading(false);
     }
-  }, [isEditing, id, navigate]);
+  };
 
   const updateCover = (updates: Partial<FormCover>) => {
     setFormCover(prev => ({ ...prev, ...updates }));
@@ -138,11 +192,20 @@ export const useFormBuilder = (isEditing = false) => {
     }));
   };
 
-  const saveForm = () => {
+  const saveForm = async () => {
     if (!formTitle.trim()) {
       toast({
         title: "Erro",
         description: "O título do formulário é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para salvar o formulário",
         variant: "destructive",
       });
       return;
@@ -158,55 +221,110 @@ export const useFormBuilder = (isEditing = false) => {
       return;
     }
 
-    // Carregar formulários existentes
-    const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
+    try {
+      if (isEditing && id) {
+        // Update existing form
+        const { error: formError } = await supabase
+          .from('forms')
+          .update({
+            title: formTitle,
+            description: formDescription,
+            cover: formCover,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
 
-    if (isEditing && id) {
-      // Atualizar formulário existente
-      const formIndex = existingForms.findIndex((form: Form) => form.id === id);
-      if (formIndex !== -1) {
-        const originalForm = existingForms[formIndex];
-        const updatedForm: Form = {
-          ...originalForm,
-          title: formTitle,
-          description: formDescription,
-          cover: formCover,
-          sections: sections,
-          updatedAt: new Date()
-        };
-        
-        existingForms[formIndex] = updatedForm;
-        localStorage.setItem('forms', JSON.stringify(existingForms));
-        
+        if (formError) throw formError;
+
+        // Delete existing sections and questions
+        await supabase.from('form_sections').delete().eq('form_id', id);
+
+        // Create new sections and questions
+        await createSectionsAndQuestions(id);
+
         toast({
           title: "Sucesso!",
           description: "Formulário atualizado com sucesso",
         });
 
-        return updatedForm;
+        return { id };
+      } else {
+        // Create new form
+        const { data: newForm, error: formError } = await supabase
+          .from('forms')
+          .insert({
+            title: formTitle,
+            description: formDescription,
+            cover: formCover,
+            user_id: user.id,
+            published: false,
+          })
+          .select()
+          .single();
+
+        if (formError) throw formError;
+
+        // Create sections and questions
+        await createSectionsAndQuestions(newForm.id);
+
+        toast({
+          title: "Sucesso!",
+          description: "Formulário criado com sucesso",
+        });
+
+        return newForm;
       }
-    } else {
-      // Criar novo formulário
-      const newForm: Form = {
-        id: Date.now().toString(),
-        title: formTitle,
-        description: formDescription,
-        cover: formCover,
-        sections: sections,
-        published: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        shareUrl: `${window.location.origin}/forms/${Date.now().toString()}`
-      };
-
-      localStorage.setItem('forms', JSON.stringify([...existingForms, newForm]));
-      
+    } catch (error) {
+      console.error('Erro ao salvar formulário:', error);
       toast({
-        title: "Sucesso!",
-        description: "Formulário criado com sucesso",
+        title: "Erro",
+        description: "Não foi possível salvar o formulário",
+        variant: "destructive",
       });
+    }
+  };
 
-      return newForm;
+  const createSectionsAndQuestions = async (formId: string) => {
+    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+      const section = sections[sectionIndex];
+      
+      // Create section
+      const { data: newSection, error: sectionError } = await supabase
+        .from('form_sections')
+        .insert({
+          form_id: formId,
+          title: section.title,
+          description: section.description,
+          order_index: sectionIndex,
+          conditional_logic: section.conditionalLogic,
+        })
+        .select()
+        .single();
+
+      if (sectionError) throw sectionError;
+
+      // Create questions for this section
+      for (let questionIndex = 0; questionIndex < section.questions.length; questionIndex++) {
+        const question = section.questions[questionIndex];
+        
+        const { error: questionError } = await supabase
+          .from('questions')
+          .insert({
+            section_id: newSection.id,
+            type: question.type,
+            title: question.title,
+            options: question.options,
+            required: question.required,
+            allow_attachments: question.allowAttachments,
+            rating_scale: question.ratingScale,
+            rating_icon: question.ratingIcon,
+            score_config: question.scoreConfig,
+            conditional_logic: question.conditionalLogic,
+            order_index: questionIndex,
+          });
+
+        if (questionError) throw questionError;
+      }
     }
   };
 
