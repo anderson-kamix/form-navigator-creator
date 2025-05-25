@@ -194,7 +194,13 @@ export const useFormBuilder = (isEditing = false) => {
   };
 
   const saveForm = async () => {
+    console.log('Iniciando salvamento do formulário...');
+    console.log('Usuário atual:', user);
+    console.log('Título do formulário:', formTitle);
+    console.log('Seções:', sections);
+
     if (!formTitle.trim()) {
+      console.log('Erro: Título vazio');
       toast({
         title: "Erro",
         description: "O título do formulário é obrigatório",
@@ -204,6 +210,7 @@ export const useFormBuilder = (isEditing = false) => {
     }
 
     if (!user) {
+      console.log('Erro: Usuário não autenticado');
       toast({
         title: "Erro",
         description: "Você precisa estar logado para salvar o formulário",
@@ -213,7 +220,10 @@ export const useFormBuilder = (isEditing = false) => {
     }
 
     const totalQuestions = sections.reduce((count, section) => count + section.questions.length, 0);
+    console.log('Total de questões:', totalQuestions);
+    
     if (totalQuestions === 0) {
+      console.log('Erro: Nenhuma questão adicionada');
       toast({
         title: "Erro",
         description: "Adicione pelo menos uma questão",
@@ -223,7 +233,10 @@ export const useFormBuilder = (isEditing = false) => {
     }
 
     try {
+      console.log('Tentando salvar no Supabase...');
+      
       if (isEditing && id) {
+        console.log('Modo edição - atualizando formulário existente');
         // Update existing form
         const { error: formError } = await supabase
           .from('forms')
@@ -235,14 +248,26 @@ export const useFormBuilder = (isEditing = false) => {
           })
           .eq('id', id);
 
-        if (formError) throw formError;
+        if (formError) {
+          console.error('Erro ao atualizar formulário:', formError);
+          throw formError;
+        }
 
         // Delete existing sections and questions
-        await supabase.from('form_sections').delete().eq('form_id', id);
+        const { error: deleteSectionsError } = await supabase
+          .from('form_sections')
+          .delete()
+          .eq('form_id', id);
+
+        if (deleteSectionsError) {
+          console.error('Erro ao deletar seções:', deleteSectionsError);
+          throw deleteSectionsError;
+        }
 
         // Create new sections and questions
         await createSectionsAndQuestions(id);
 
+        console.log('Formulário atualizado com sucesso');
         toast({
           title: "Sucesso!",
           description: "Formulário atualizado com sucesso",
@@ -250,24 +275,37 @@ export const useFormBuilder = (isEditing = false) => {
 
         return { id };
       } else {
+        console.log('Modo criação - criando novo formulário');
+        
         // Create new form
+        const formData = {
+          title: formTitle,
+          description: formDescription,
+          cover: formCover as any,
+          user_id: user.id,
+          published: false,
+        };
+        
+        console.log('Dados do formulário a serem inseridos:', formData);
+        
         const { data: newForm, error: formError } = await supabase
           .from('forms')
-          .insert({
-            title: formTitle,
-            description: formDescription,
-            cover: formCover as any,
-            user_id: user.id,
-            published: false,
-          })
+          .insert(formData)
           .select()
           .single();
 
-        if (formError) throw formError;
+        if (formError) {
+          console.error('Erro ao criar formulário:', formError);
+          throw formError;
+        }
+
+        console.log('Formulário criado com sucesso:', newForm);
 
         // Create sections and questions
         await createSectionsAndQuestions(newForm.id);
 
+        console.log('Seções e questões criadas com sucesso');
+        
         toast({
           title: "Sucesso!",
           description: "Formulário criado com sucesso",
@@ -276,57 +314,88 @@ export const useFormBuilder = (isEditing = false) => {
         return newForm;
       }
     } catch (error) {
-      console.error('Erro ao salvar formulário:', error);
+      console.error('Erro detalhado ao salvar formulário:', error);
+      
+      // Mostrar erro mais específico
+      let errorMessage = "Não foi possível salvar o formulário";
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
       toast({
         title: "Erro",
-        description: "Não foi possível salvar o formulário",
+        description: errorMessage,
         variant: "destructive",
       });
     }
   };
 
   const createSectionsAndQuestions = async (formId: string) => {
+    console.log('Criando seções e questões para o formulário:', formId);
+    
     for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
       const section = sections[sectionIndex];
+      console.log(`Criando seção ${sectionIndex + 1}:`, section.title);
       
       // Create section
+      const sectionData = {
+        form_id: formId,
+        title: section.title,
+        description: section.description,
+        order_index: sectionIndex,
+        conditional_logic: section.conditionalLogic as any,
+      };
+      
+      console.log('Dados da seção a serem inseridos:', sectionData);
+      
       const { data: newSection, error: sectionError } = await supabase
         .from('form_sections')
-        .insert({
-          form_id: formId,
-          title: section.title,
-          description: section.description,
-          order_index: sectionIndex,
-          conditional_logic: section.conditionalLogic as any,
-        })
+        .insert(sectionData)
         .select()
         .single();
 
-      if (sectionError) throw sectionError;
+      if (sectionError) {
+        console.error('Erro ao criar seção:', sectionError);
+        throw sectionError;
+      }
+
+      console.log('Seção criada com sucesso:', newSection);
 
       // Create questions for this section
       for (let questionIndex = 0; questionIndex < section.questions.length; questionIndex++) {
         const question = section.questions[questionIndex];
+        console.log(`Criando questão ${questionIndex + 1}:`, question.title);
+        
+        const questionData = {
+          section_id: newSection.id,
+          type: question.type,
+          title: question.title,
+          options: question.options as any,
+          required: question.required,
+          allow_attachments: question.allowAttachments,
+          rating_scale: question.ratingScale,
+          rating_icon: question.ratingIcon,
+          score_config: question.scoreConfig as any,
+          conditional_logic: question.conditionalLogic as any,
+          order_index: questionIndex,
+        };
+        
+        console.log('Dados da questão a serem inseridos:', questionData);
         
         const { error: questionError } = await supabase
           .from('questions')
-          .insert({
-            section_id: newSection.id,
-            type: question.type,
-            title: question.title,
-            options: question.options as any,
-            required: question.required,
-            allow_attachments: question.allowAttachments,
-            rating_scale: question.ratingScale,
-            rating_icon: question.ratingIcon,
-            score_config: question.scoreConfig as any,
-            conditional_logic: question.conditionalLogic as any,
-            order_index: questionIndex,
-          });
+          .insert(questionData);
 
-        if (questionError) throw questionError;
+        if (questionError) {
+          console.error('Erro ao criar questão:', questionError);
+          throw questionError;
+        }
+
+        console.log('Questão criada com sucesso');
       }
     }
+    
+    console.log('Todas as seções e questões foram criadas com sucesso');
   };
 
   return {

@@ -6,8 +6,10 @@ import FormHeader from './form-builder/FormHeader';
 import FormCoverComponent from './form-builder/FormCover';
 import FormSectionComponent from './form-builder/FormSectionComponent';
 import { useFormBuilder } from '@/hooks/useFormBuilder';
+import { useNavigate } from 'react-router-dom';
 
 const FormBuilder = () => {
+  const navigate = useNavigate();
   const {
     formTitle,
     setFormTitle,
@@ -25,6 +27,15 @@ const FormBuilder = () => {
     removeQuestion,
     saveForm
   } = useFormBuilder();
+
+  const handleSaveForm = async () => {
+    console.log('Botão salvar clicado');
+    const result = await saveForm();
+    if (result) {
+      console.log('Formulário salvo, redirecionando para /forms');
+      navigate('/forms');
+    }
+  };
 
   return (
     <div className="p-8">
@@ -78,7 +89,7 @@ const FormBuilder = () => {
             </Button>
           </div>
 
-          <Button onClick={saveForm} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSaveForm} className="bg-blue-600 hover:bg-blue-700">
             Salvar Formulário
           </Button>
         </div>
