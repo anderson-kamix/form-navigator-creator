@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Form } from '@/types/form';
@@ -44,6 +43,7 @@ const ResponseViewer = () => {
       
       // Load responses
       const storedResponses = JSON.parse(localStorage.getItem(`responses_${id}`) || '[]');
+      console.log("Loaded responses:", storedResponses);
       setResponses(storedResponses);
       
       setLoading(false);
@@ -57,6 +57,7 @@ const ResponseViewer = () => {
   };
 
   const handleEditClick = (response: Response) => {
+    console.log("Opening edit modal for response:", response);
     setSelectedResponse(response);
     setIsEditModalOpen(true);
   };
@@ -69,6 +70,7 @@ const ResponseViewer = () => {
   const handleSaveResponse = (formId: string, updatedAnswers: Record<string, any>) => {
     if (!selectedResponse) return;
     
+    console.log("Saving response with updated answers:", updatedAnswers);
     const responseId = selectedResponse.submittedAt.toString();
     const success = updateResponse(formId, responseId, updatedAnswers);
     
@@ -86,6 +88,9 @@ const ResponseViewer = () => {
         title: "Resposta atualizada",
         description: "A resposta foi atualizada com sucesso."
       });
+      
+      setIsEditModalOpen(false);
+      setSelectedResponse(null);
     } else {
       toast({
         title: "Erro",
@@ -115,6 +120,7 @@ const ResponseViewer = () => {
       });
       
       setIsDeleteDialogOpen(false);
+      setResponseToDelete(null);
     } else {
       toast({
         title: "Erro",
@@ -191,7 +197,10 @@ const ResponseViewer = () => {
       {/* Edit Modal */}
       <ResponseEditModal
         open={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedResponse(null);
+        }}
         response={selectedResponse}
         questions={allQuestions}
         onSave={handleSaveResponse}
@@ -200,7 +209,10 @@ const ResponseViewer = () => {
       {/* Delete Confirmation Dialog */}
       <ResponseDeleteDialog
         open={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setResponseToDelete(null);
+        }}
         onConfirm={handleDeleteResponse}
       />
     </div>
