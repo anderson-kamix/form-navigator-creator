@@ -29,31 +29,49 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Erro ao buscar perfil:', error);
+        return null;
+      }
+      
+      return profile as UserProfile;
+    } catch (error) {
+      console.error('Erro ao buscar perfil:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (!mounted) return;
+
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Buscar perfil do usuário
-          try {
-            const { data: profile, error } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-
-            if (error) {
-              console.error('Erro ao buscar perfil:', error);
-            } else {
-              setUserProfile(profile);
+          // Fetch user profile after setting session
+          setTimeout(async () => {
+            if (mounted) {
+              const profile = await fetchUserProfile(session.user.id);
+              if (mounted) {
+                setUserProfile(profile);
+              }
             }
-          } catch (error) {
-            console.error('Erro ao buscar perfil:', error);
-          }
+          }, 0);
         } else {
           setUserProfile(null);
         }
@@ -63,40 +81,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        try {
-          const { data: profile, error } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Erro ao obter sessão:', error);
+        }
+        
+        if (!mounted) return;
 
-          if (error) {
-            console.error('Erro ao buscar perfil:', error);
-          } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const profile = await fetchUserProfile(session.user.id);
+          if (mounted) {
             setUserProfile(profile);
           }
-        } catch (error) {
-          console.error('Erro ao buscar perfil:', error);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Erro na inicialização da auth:', error);
+        if (mounted) {
+          setLoading(false);
         }
       }
-      
-      setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
       setUserProfile(null);
+      setUser(null);
+      setSession(null);
       
       toast({
         title: "Logout realizado",
@@ -109,6 +139,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "Ocorreu um erro ao fazer logout.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 

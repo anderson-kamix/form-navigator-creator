@@ -15,9 +15,15 @@ import FormEditor from "@/components/FormEditor";
 import FormViewer from "@/components/FormViewer";
 import ResponseViewer from "@/components/ResponseViewer";
 import Statistics from "@/components/Statistics";
-import Index from "./pages/Index";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -32,21 +38,25 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/forms/:id" element={<FormViewer />} />
               
-              {/* Protected routes */}
+              {/* Protected routes with navigation */}
               <Route
                 path="/*"
                 element={
                   <ProtectedRoute>
-                    <Navigation />
-                    <Routes>
-                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/forms" element={<FormManagement />} />
-                      <Route path="/forms/new" element={<FormBuilder />} />
-                      <Route path="/forms/:id/edit" element={<FormEditor />} />
-                      <Route path="/responses/:id" element={<ResponseViewer />} />
-                      <Route path="/statistics/:id" element={<Statistics />} />
-                    </Routes>
+                    <div className="min-h-screen">
+                      <Navigation />
+                      <main className="pt-16">
+                        <Routes>
+                          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                          <Route path="/dashboard" element={<Dashboard />} />
+                          <Route path="/forms" element={<FormManagement />} />
+                          <Route path="/forms/new" element={<FormBuilder />} />
+                          <Route path="/forms/:id/edit" element={<FormEditor />} />
+                          <Route path="/responses/:id" element={<ResponseViewer />} />
+                          <Route path="/statistics/:id" element={<Statistics />} />
+                        </Routes>
+                      </main>
+                    </div>
                   </ProtectedRoute>
                 }
               />
