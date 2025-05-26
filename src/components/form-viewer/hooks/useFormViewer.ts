@@ -3,6 +3,7 @@ import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { useFormNavigation } from './useFormNavigation';
 import { useFormAnswers } from './useFormAnswers';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   QuestionWithSection, 
   flattenSectionQuestions, 
@@ -60,25 +61,124 @@ export const useFormViewer = (formId: string | undefined) => {
     allQuestions
   );
 
-  // Load the form data from localStorage
+  // Load the form data from Supabase
   useEffect(() => {
-    if (formId) {
-      const existingForms = JSON.parse(localStorage.getItem('forms') || '[]');
-      const formData = existingForms.find((f: Form) => f.id === formId);
-      
-      if (formData) {
-        setForm(formData);
-        
-        // Set sections from form data
-        setSections(formData.sections);
-        
-        // Flatten all questions from all sections into a single array (for reference)
-        // Add the sectionId to each question
-        setAllQuestions(flattenSectionQuestions(formData.sections));
+    const loadForm = async () => {
+      if (!formId) {
+        setLoading(false);
+        return;
       }
-      
-      setLoading(false);
-    }
+
+      try {
+        console.log('Carregando formulário do Supabase:', formId);
+        
+        // Fetch form
+        const { data: formData, error: formError } = await supabase
+          .from('forms')
+          .select('*')
+          .eq('id', formId)
+          .single();
+
+        if (formError) {
+          console.error('Erro ao carregar formulário:', formError);
+          setForm(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log('Formulário carregado:', formData);
+
+        // Fetch sections
+        const { data: sectionsData, error: sectionsError } = await supabase
+          .from('form_sections')
+          .select('*')
+          .eq('form_id', formId)
+          .order('order_index');
+
+        if (sectionsError) {
+          console.error('Erro ao carregar seções:', sectionsError);
+          setForm(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log('Seções carregadas:', sectionsData);
+
+        // Fetch questions for each section
+        const sectionsWithQuestions = await Promise.all(
+          sectionsData.map(async (section) => {
+            const { data: questionsData, error: questionsError } = await supabase
+              .from('questions')
+              .select('*')
+              .eq('section_id', section.id)
+              .order('order_index');
+
+            if (questionsError) {
+              console.error('Erro ao carregar questões da seção:', questionsError);
+              return {
+                id: section.id,
+                title: section.title,
+                description: section.description || '',
+                questions: [],
+                isOpen: true,
+                conditionalLogic: section.conditional_logic || []
+              };
+            }
+
+            // Convert questions to the expected format
+            const formattedQuestions = questionsData.map(q => ({
+              id: q.id,
+              type: q.type as any,
+              title: q.title,
+              options: q.options as string[],
+              required: q.required || false,
+              allowAttachments: q.allow_attachments || false,
+              ratingScale: q.rating_scale,
+              ratingIcon: q.rating_icon as any,
+              scoreConfig: q.score_config as any,
+              conditionalLogic: q.conditional_logic || []
+            }));
+
+            return {
+              id: section.id,
+              title: section.title,
+              description: section.description || '',
+              questions: formattedQuestions,
+              isOpen: true,
+              conditionalLogic: section.conditional_logic || []
+            };
+          })
+        );
+
+        console.log('Seções com questões:', sectionsWithQuestions);
+
+        // Create the form object
+        const formObject: Form = {
+          id: formData.id,
+          title: formData.title,
+          description: formData.description || '',
+          cover: formData.cover as any,
+          sections: sectionsWithQuestions,
+          published: formData.published || false,
+          createdAt: new Date(formData.created_at),
+          updatedAt: new Date(formData.updated_at)
+        };
+
+        setForm(formObject);
+        setSections(sectionsWithQuestions);
+        
+        // Flatten all questions from all sections into a single array
+        setAllQuestions(flattenSectionQuestions(sectionsWithQuestions));
+        
+      } catch (error) {
+        console.error('Erro ao carregar formulário:', error);
+        setForm(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadForm();
   }, [formId]);
 
   // Check if the form is viewed embedded (standalone)
