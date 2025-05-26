@@ -47,7 +47,6 @@ const AuthPage = () => {
 
     console.log('=== INÍCIO DO LOGIN ===');
     console.log('Email:', loginEmail);
-    console.log('Supabase URL:', supabase.supabaseUrl);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
