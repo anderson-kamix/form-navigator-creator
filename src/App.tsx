@@ -36,7 +36,6 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/auth" element={<AuthPage />} />
-              <Route path="/forms/:id" element={<FormViewer />} />
               
               {/* Protected routes with navigation */}
               <Route
@@ -52,6 +51,7 @@ const App = () => (
                           <Route path="/forms" element={<FormManagement />} />
                           <Route path="/forms/new" element={<FormBuilder />} />
                           <Route path="/forms/:id/edit" element={<FormEditor />} />
+                          <Route path="/forms/:id" element={<FormViewer />} />
                           <Route path="/responses/:id" element={<ResponseViewer />} />
                           <Route path="/statistics/:id" element={<Statistics />} />
                         </Routes>
