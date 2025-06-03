@@ -274,7 +274,9 @@ export const useFormViewer = (formId: string | undefined) => {
 
     try {
       if (form) {
-        // Save response to localStorage
+        console.log('Enviando formulário para o Supabase...');
+        
+        // Save response to Supabase (with localStorage backup)
         await saveFormResponse(form, answers, attachments);
         
         toast({

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Edit, Trash2, Share2, Copy, Eye, FileText, BarChart, List, Users } from 'lucide-react';
@@ -63,7 +62,7 @@ const FormManagement = () => {
 
       setForms(formsData || []);
       
-      // Carregar contagem de respostas para cada formulário
+      // Carregar contagem de respostas para cada formulário do Supabase
       const counts: {[key: string]: number} = {};
       for (const form of formsData || []) {
         const { count, error: countError } = await supabase
@@ -73,6 +72,10 @@ const FormManagement = () => {
 
         if (!countError) {
           counts[form.id] = count || 0;
+        } else {
+          // Fallback para localStorage se Supabase falhar
+          const localResponses = JSON.parse(localStorage.getItem(`responses_${form.id}`) || '[]');
+          counts[form.id] = localResponses.length;
         }
       }
       setResponseCounts(counts);

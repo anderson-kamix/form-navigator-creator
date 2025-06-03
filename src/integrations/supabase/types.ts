@@ -339,6 +339,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_form_responses_table: {
+        Args: { form_id: string }
+        Returns: string
+      }
       has_form_permission: {
         Args: { form_id: string; permission_type?: string }
         Returns: boolean

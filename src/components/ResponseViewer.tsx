@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Form } from '@/types/form';
@@ -5,8 +6,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Response } from './form-viewer/useFormViewerState';
+import { supabase } from '@/integrations/supabase/client';
 import { QuestionWithSection, flattenSectionQuestions } from './form-viewer/utils/sectionUtils';
+import { loadFormResponses } from './form-viewer/utils/responseUtils';
 import ResponseEditModal from './form-viewer/ResponseEditModal';
 import ResponseDeleteDialog from './form-viewer/ResponseDeleteDialog';
 import { updateResponse, deleteResponse } from './form-viewer/utils/responseManagement';
@@ -14,6 +16,32 @@ import { exportResponsesToCSV } from './response-viewer/utils/exportUtils';
 import ResponseHeader from './response-viewer/ResponseHeader';
 import ResponseList from './response-viewer/ResponseList';
 import ResponseEmptyState from './response-viewer/ResponseEmptyState';
+
+interface SupabaseResponse {
+  id: string;
+  submitted_at: string;
+  ip_address?: string;
+  user_agent?: string;
+  question_answers: Array<{
+    question_id: string;
+    answer: any;
+  }>;
+  attachments: Array<{
+    question_id: string;
+    file_name: string;
+    file_type: string;
+    file_size: number;
+    file_data: string;
+  }>;
+}
+
+interface Response {
+  id: string;
+  submittedAt: Date;
+  answers: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 const ResponseViewer = () => {
   const { id } = useParams();
@@ -32,23 +60,113 @@ const ResponseViewer = () => {
 
   useEffect(() => {
     if (id) {
-      // Load form
-      const storedForms = JSON.parse(localStorage.getItem('forms') || '[]');
-      const foundForm = storedForms.find((f: Form) => f.id === id);
-      
-      if (foundForm) {
-        setForm(foundForm);
-        setAllQuestions(flattenSectionQuestions(foundForm.sections));
-      }
-      
-      // Load responses
-      const storedResponses = JSON.parse(localStorage.getItem(`responses_${id}`) || '[]');
-      console.log("Loaded responses:", storedResponses);
-      setResponses(storedResponses);
-      
-      setLoading(false);
+      loadFormAndResponses();
     }
   }, [id]);
+
+  const loadFormAndResponses = async () => {
+    if (!id) return;
+
+    try {
+      // Load form from Supabase
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .select(`
+          *,
+          form_sections (
+            *,
+            questions (*)
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (formError) {
+        console.error('Erro ao carregar formulário:', formError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar o formulário",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Convert to Form format
+      const sectionsWithQuestions = formData.form_sections
+        .sort((a, b) => a.order_index - b.order_index)
+        .map(section => ({
+          id: section.id,
+          title: section.title,
+          description: section.description || '',
+          questions: section.questions
+            .sort((a, b) => a.order_index - b.order_index)
+            .map(q => ({
+              id: q.id,
+              type: q.type as any,
+              title: q.title,
+              options: q.options as string[],
+              required: q.required || false,
+              allowAttachments: q.allow_attachments || false,
+              ratingScale: q.rating_scale,
+              ratingIcon: q.rating_icon as any,
+              scoreConfig: q.score_config as any,
+              conditionalLogic: q.conditional_logic || []
+            })),
+          isOpen: true,
+          conditionalLogic: section.conditional_logic || []
+        }));
+
+      const formObject: Form = {
+        id: formData.id,
+        title: formData.title,
+        description: formData.description || '',
+        cover: formData.cover as any,
+        sections: sectionsWithQuestions,
+        published: formData.published || false,
+        createdAt: new Date(formData.created_at),
+        updatedAt: new Date(formData.updated_at)
+      };
+
+      setForm(formObject);
+      setAllQuestions(flattenSectionQuestions(sectionsWithQuestions));
+
+      // Load responses
+      const responsesData = await loadFormResponses(id);
+      console.log('Dados de resposta carregados:', responsesData);
+
+      // Convert responses to the expected format
+      const formattedResponses = responsesData.map((response: SupabaseResponse) => {
+        // Convert question_answers array to answers object
+        const answers: Record<string, any> = {};
+        if (response.question_answers) {
+          response.question_answers.forEach(qa => {
+            answers[qa.question_id] = qa.answer;
+          });
+        }
+
+        return {
+          id: response.id,
+          submittedAt: new Date(response.submitted_at),
+          answers,
+          ipAddress: response.ip_address,
+          userAgent: response.user_agent
+        };
+      });
+
+      setResponses(formattedResponses);
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleExportCSV = () => {
     if (form) {
