@@ -6,13 +6,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { QuestionWithSection } from '../form-viewer/utils/sectionUtils';
-import { Response } from '../form-viewer/useFormViewerState';
 import { toast } from "@/hooks/use-toast";
+
+// Interface local para as respostas
+interface FormResponseData {
+  id: string;
+  submittedAt: Date;
+  answers: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  formId: string;
+  attachments: Record<string, string>;
+}
 
 interface ResponseEditModalProps {
   open: boolean;
   onClose: () => void;
-  response: Response | null;
+  response: FormResponseData | null;
   questions: QuestionWithSection[];
   onSave: (formId: string, updatedAnswers: Record<string, any>) => void;
 }

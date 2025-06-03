@@ -1,14 +1,24 @@
 
 import React from 'react';
-import { Response } from '../form-viewer/useFormViewerState';
 import { QuestionWithSection } from '../form-viewer/utils/sectionUtils';
 import ResponseCard from './ResponseCard';
 
+// Interface local para as respostas
+interface FormResponseData {
+  id: string;
+  submittedAt: Date;
+  answers: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  formId: string;
+  attachments: Record<string, string>;
+}
+
 interface ResponseListProps {
-  responses: Response[];
+  responses: FormResponseData[];
   questions: QuestionWithSection[];
-  onEdit: (response: Response) => void;
-  onDelete: (response: Response) => void;
+  onEdit: (response: FormResponseData) => void;
+  onDelete: (response: FormResponseData) => void;
 }
 
 const ResponseList: React.FC<ResponseListProps> = ({
@@ -21,7 +31,7 @@ const ResponseList: React.FC<ResponseListProps> = ({
     <div className="space-y-4">
       {responses.map((response, index) => (
         <ResponseCard
-          key={index}
+          key={response.id}
           response={response}
           index={index}
           questions={questions}

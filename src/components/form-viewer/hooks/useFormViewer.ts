@@ -121,11 +121,11 @@ export const useFormViewer = (formId: string | undefined) => {
                 description: section.description || '',
                 questions: [],
                 isOpen: true,
-                conditionalLogic: section.conditional_logic || []
+                conditionalLogic: []
               };
             }
 
-            // Convert questions to the expected format
+            // Convert questions to the expected format with proper type casting
             const formattedQuestions = questionsData.map(q => ({
               id: q.id,
               type: q.type as any,
@@ -136,7 +136,7 @@ export const useFormViewer = (formId: string | undefined) => {
               ratingScale: q.rating_scale,
               ratingIcon: q.rating_icon as any,
               scoreConfig: q.score_config as any,
-              conditionalLogic: q.conditional_logic || []
+              conditionalLogic: Array.isArray(q.conditional_logic) ? q.conditional_logic : []
             }));
 
             return {
@@ -145,7 +145,7 @@ export const useFormViewer = (formId: string | undefined) => {
               description: section.description || '',
               questions: formattedQuestions,
               isOpen: true,
-              conditionalLogic: section.conditional_logic || []
+              conditionalLogic: Array.isArray(section.conditional_logic) ? section.conditional_logic : []
             };
           })
         );

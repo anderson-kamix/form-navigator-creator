@@ -35,28 +35,31 @@ interface SupabaseResponse {
   }>;
 }
 
-interface Response {
+// Interface para as respostas usadas neste componente
+interface FormResponseData {
   id: string;
   submittedAt: Date;
   answers: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
+  formId: string;
+  attachments: Record<string, string>;
 }
 
 const ResponseViewer = () => {
   const { id } = useParams();
   const [form, setForm] = useState<Form | null>(null);
-  const [responses, setResponses] = useState<Response[]>([]);
+  const [responses, setResponses] = useState<FormResponseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [allQuestions, setAllQuestions] = useState<QuestionWithSection[]>([]);
   
   // State for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
+  const [selectedResponse, setSelectedResponse] = useState<FormResponseData | null>(null);
   
   // State for delete dialog
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [responseToDelete, setResponseToDelete] = useState<Response | null>(null);
+  const [responseToDelete, setResponseToDelete] = useState<FormResponseData | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -92,7 +95,7 @@ const ResponseViewer = () => {
         return;
       }
 
-      // Convert to Form format
+      // Convert to Form format with proper type casting
       const sectionsWithQuestions = formData.form_sections
         .sort((a, b) => a.order_index - b.order_index)
         .map(section => ({
@@ -111,10 +114,10 @@ const ResponseViewer = () => {
               ratingScale: q.rating_scale,
               ratingIcon: q.rating_icon as any,
               scoreConfig: q.score_config as any,
-              conditionalLogic: q.conditional_logic || []
+              conditionalLogic: Array.isArray(q.conditional_logic) ? q.conditional_logic : []
             })),
           isOpen: true,
-          conditionalLogic: section.conditional_logic || []
+          conditionalLogic: Array.isArray(section.conditional_logic) ? section.conditional_logic : []
         }));
 
       const formObject: Form = {
@@ -136,7 +139,7 @@ const ResponseViewer = () => {
       console.log('Dados de resposta carregados:', responsesData);
 
       // Convert responses to the expected format
-      const formattedResponses = responsesData.map((response: SupabaseResponse) => {
+      const formattedResponses: FormResponseData[] = responsesData.map((response: SupabaseResponse) => {
         // Convert question_answers array to answers object
         const answers: Record<string, any> = {};
         if (response.question_answers) {
@@ -145,12 +148,22 @@ const ResponseViewer = () => {
           });
         }
 
+        // Convert attachments to Record format
+        const attachments: Record<string, string> = {};
+        if (response.attachments) {
+          response.attachments.forEach(attachment => {
+            attachments[attachment.question_id] = attachment.file_data;
+          });
+        }
+
         return {
           id: response.id,
           submittedAt: new Date(response.submitted_at),
           answers,
           ipAddress: response.ip_address,
-          userAgent: response.user_agent
+          userAgent: response.user_agent,
+          formId: id,
+          attachments
         };
       });
 
@@ -174,13 +187,13 @@ const ResponseViewer = () => {
     }
   };
 
-  const handleEditClick = (response: Response) => {
+  const handleEditClick = (response: FormResponseData) => {
     console.log("Opening edit modal for response:", response);
     setSelectedResponse(response);
     setIsEditModalOpen(true);
   };
 
-  const handleDeleteClick = (response: Response) => {
+  const handleDeleteClick = (response: FormResponseData) => {
     setResponseToDelete(response);
     setIsDeleteDialogOpen(true);
   };
@@ -278,7 +291,7 @@ const ResponseViewer = () => {
   return (
     <div className="p-8">
       <ResponseHeader 
-        title={form.title}
+        title={form?.title || ''}
         formId={id || ''}
         responseCount={responses.length}
         onExportCSV={handleExportCSV}
