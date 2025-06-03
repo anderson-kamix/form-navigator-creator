@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Form } from '@/types/form';
@@ -198,18 +197,17 @@ const ResponseViewer = () => {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleSaveResponse = (formId: string, updatedAnswers: Record<string, any>) => {
+  const handleSaveResponse = async (formId: string, updatedAnswers: Record<string, any>) => {
     if (!selectedResponse) return;
     
     console.log("Saving response with updated answers:", updatedAnswers);
-    const responseId = selectedResponse.submittedAt.toString();
-    const success = updateResponse(formId, responseId, updatedAnswers);
+    const success = await updateResponse(formId, selectedResponse.id, updatedAnswers);
     
     if (success) {
       // Update the local state to reflect changes
       setResponses(prevResponses => 
         prevResponses.map(r => 
-          new Date(r.submittedAt).getTime() === new Date(responseId).getTime()
+          r.id === selectedResponse.id
             ? { ...r, answers: updatedAnswers }
             : r
         )
@@ -231,18 +229,15 @@ const ResponseViewer = () => {
     }
   };
 
-  const handleDeleteResponse = () => {
+  const handleDeleteResponse = async () => {
     if (!responseToDelete || !id) return;
     
-    const responseId = responseToDelete.submittedAt.toString();
-    const success = deleteResponse(id, responseId);
+    const success = await deleteResponse(id, responseToDelete.id);
     
     if (success) {
       // Remove from local state
       setResponses(prevResponses => 
-        prevResponses.filter(r => 
-          new Date(r.submittedAt).getTime() !== new Date(responseId).getTime()
-        )
+        prevResponses.filter(r => r.id !== responseToDelete.id)
       );
       
       toast({

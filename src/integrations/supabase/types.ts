@@ -57,6 +57,47 @@ export type Database = {
           },
         ]
       }
+      form_a673debe_a67a_4a41_80de_8c2861b095df_responses: {
+        Row: {
+          id: string
+          ip_address: unknown | null
+          question_579a0b2e_2fcf_4864_ae66_ab7bb04f4d6a: Json | null
+          question_7be65fa7_687d_4ede_a08b_ae6d6368dc4c: Json | null
+          question_91b374d1_b3b4_470c_b61c_1c1a13ee0a0b: Json | null
+          response_id: string
+          submitted_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          ip_address?: unknown | null
+          question_579a0b2e_2fcf_4864_ae66_ab7bb04f4d6a?: Json | null
+          question_7be65fa7_687d_4ede_a08b_ae6d6368dc4c?: Json | null
+          question_91b374d1_b3b4_470c_b61c_1c1a13ee0a0b?: Json | null
+          response_id: string
+          submitted_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          ip_address?: unknown | null
+          question_579a0b2e_2fcf_4864_ae66_ab7bb04f4d6a?: Json | null
+          question_7be65fa7_687d_4ede_a08b_ae6d6368dc4c?: Json | null
+          question_91b374d1_b3b4_470c_b61c_1c1a13ee0a0b?: Json | null
+          response_id?: string
+          submitted_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_a673debe_a67a_4a41_80de_8c2861b095df_resp_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "form_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_permissions: {
         Row: {
           can_edit: boolean | null
