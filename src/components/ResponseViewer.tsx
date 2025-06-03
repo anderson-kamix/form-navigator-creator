@@ -114,10 +114,10 @@ const ResponseViewer = () => {
               ratingScale: q.rating_scale,
               ratingIcon: q.rating_icon as any,
               scoreConfig: q.score_config as any,
-              conditionalLogic: Array.isArray(q.conditional_logic) ? q.conditional_logic : []
+              conditionalLogic: Array.isArray(q.conditional_logic) ? q.conditional_logic as any[] : []
             })),
           isOpen: true,
-          conditionalLogic: Array.isArray(section.conditional_logic) ? section.conditional_logic : []
+          conditionalLogic: Array.isArray(section.conditional_logic) ? section.conditional_logic as any[] : []
         }));
 
       const formObject: Form = {

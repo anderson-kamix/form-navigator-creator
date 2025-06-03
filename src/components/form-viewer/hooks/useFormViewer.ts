@@ -136,7 +136,7 @@ export const useFormViewer = (formId: string | undefined) => {
               ratingScale: q.rating_scale,
               ratingIcon: q.rating_icon as any,
               scoreConfig: q.score_config as any,
-              conditionalLogic: Array.isArray(q.conditional_logic) ? q.conditional_logic : []
+              conditionalLogic: Array.isArray(q.conditional_logic) ? q.conditional_logic as any[] : []
             }));
 
             return {
@@ -145,7 +145,7 @@ export const useFormViewer = (formId: string | undefined) => {
               description: section.description || '',
               questions: formattedQuestions,
               isOpen: true,
-              conditionalLogic: Array.isArray(section.conditional_logic) ? section.conditional_logic : []
+              conditionalLogic: Array.isArray(section.conditional_logic) ? section.conditional_logic as any[] : []
             };
           })
         );
