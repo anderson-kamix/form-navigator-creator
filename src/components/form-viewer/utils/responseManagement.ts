@@ -8,7 +8,8 @@ import { toast } from '@/hooks/use-toast';
 export const updateResponse = async (
   formId: string, 
   responseId: string, 
-  updatedAnswers: Record<string, any>
+  updatedAnswers: Record<string, any>,
+  updatedAttachments?: Record<string, string>
 ): Promise<boolean> => {
   try {
     console.log('Updating response in Supabase:', responseId, updatedAnswers);
@@ -44,6 +45,48 @@ export const updateResponse = async (
       if (insertError) {
         console.error('Error inserting updated answers:', insertError);
         throw insertError;
+      }
+    }
+
+    // Update attachments if provided
+    if (updatedAttachments) {
+      console.log('Updating attachments:', updatedAttachments);
+      
+      // Delete existing attachments for this response
+      const { error: deleteAttachmentsError } = await supabase
+        .from('attachments')
+        .delete()
+        .eq('response_id', responseId);
+
+      if (deleteAttachmentsError) {
+        console.error('Error deleting existing attachments:', deleteAttachmentsError);
+        // Don't throw here, continue with the update
+      }
+
+      // Insert new attachments
+      const attachmentRecords = [];
+      for (const [questionId, fileUrl] of Object.entries(updatedAttachments)) {
+        if (fileUrl) {
+          attachmentRecords.push({
+            response_id: responseId,
+            question_id: questionId,
+            file_name: 'attachment',
+            file_type: 'image/jpeg', // Default type
+            file_size: 0,
+            file_data: fileUrl
+          });
+        }
+      }
+
+      if (attachmentRecords.length > 0) {
+        const { error: insertAttachmentsError } = await supabase
+          .from('attachments')
+          .insert(attachmentRecords);
+
+        if (insertAttachmentsError) {
+          console.error('Error inserting updated attachments:', insertAttachmentsError);
+          // Don't throw here, the main response is already updated
+        }
       }
     }
 

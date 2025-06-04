@@ -197,10 +197,16 @@ const ResponseViewer = () => {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleSaveResponse = async (formId: string, updatedAnswers: Record<string, any>) => {
+  const handleSaveResponse = async (
+    formId: string, 
+    updatedAnswers: Record<string, any>, 
+    updatedAttachments?: Record<string, string>
+  ) => {
     if (!selectedResponse) return;
     
     console.log("Saving response with updated answers:", updatedAnswers);
+    console.log("Saving response with updated attachments:", updatedAttachments);
+    
     const success = await updateResponse(formId, selectedResponse.id, updatedAnswers);
     
     if (success) {
@@ -208,10 +214,43 @@ const ResponseViewer = () => {
       setResponses(prevResponses => 
         prevResponses.map(r => 
           r.id === selectedResponse.id
-            ? { ...r, answers: updatedAnswers }
+            ? { 
+                ...r, 
+                answers: updatedAnswers,
+                attachments: updatedAttachments || r.attachments
+              }
             : r
         )
       );
+      
+      // If we have updated attachments, also update them in Supabase
+      if (updatedAttachments) {
+        try {
+          // Delete existing attachment records for this response
+          await supabase
+            .from('attachments')
+            .delete()
+            .eq('response_id', selectedResponse.id);
+          
+          // Insert new attachment records
+          const attachmentRecords = Object.entries(updatedAttachments).map(([questionId, fileUrl]) => ({
+            response_id: selectedResponse.id,
+            question_id: questionId,
+            file_name: 'updated_file',
+            file_type: 'image/jpeg', // Default, could be improved
+            file_size: 0, // Could be improved
+            file_data: fileUrl
+          }));
+          
+          if (attachmentRecords.length > 0) {
+            await supabase
+              .from('attachments')
+              .insert(attachmentRecords);
+          }
+        } catch (error) {
+          console.error('Error updating attachments in database:', error);
+        }
+      }
       
       toast({
         title: "Resposta atualizada",

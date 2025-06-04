@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { QuestionWithSection } from '../form-viewer/utils/sectionUtils';
 import { toast } from "@/hooks/use-toast";
 import AttachmentViewer from './AttachmentViewer';
+import { QuestionRenderer } from './QuestionRenderer';
+import { uploadFileToStorage, deleteFileFromStorage } from './utils/storageUtils';
 
 // Interface local para as respostas
 interface FormResponseData {
@@ -25,18 +27,23 @@ interface ResponseEditModalProps {
   onClose: () => void;
   response: FormResponseData | null;
   questions: QuestionWithSection[];
-  onSave: (formId: string, updatedAnswers: Record<string, any>) => void;
+  onSave: (formId: string, updatedAnswers: Record<string, any>, updatedAttachments?: Record<string, string>) => void;
 }
 
 const ResponseEditModal = ({ open, onClose, response, questions, onSave }: ResponseEditModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [attachments, setAttachments] = useState<Record<string, string>>({});
+  const [newFiles, setNewFiles] = useState<Record<string, File | null>>({});
 
-  // Initialize answers when response changes
+  // Initialize answers and attachments when response changes
   useEffect(() => {
     if (response) {
       console.log("Loading response answers:", response.answers);
+      console.log("Loading response attachments:", response.attachments);
       setAnswers({ ...response.answers });
+      setAttachments({ ...response.attachments });
+      setNewFiles({});
     }
   }, [response]);
 
@@ -48,6 +55,72 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
     }));
   };
 
+  const handleFileChange = (questionId: string, file: File | null) => {
+    console.log("File changed for question", questionId, ":", file?.name);
+    setNewFiles(prev => ({
+      ...prev,
+      [questionId]: file
+    }));
+  };
+
+  const handleRemoveAttachment = async (questionId: string) => {
+    console.log("Removing attachment for question", questionId);
+    
+    // Remove from current attachments
+    setAttachments(prev => {
+      const updated = { ...prev };
+      delete updated[questionId];
+      return updated;
+    });
+    
+    // Also remove any new file for this question
+    setNewFiles(prev => {
+      const updated = { ...prev };
+      delete updated[questionId];
+      return updated;
+    });
+  };
+
+  const handleCapturePhoto = (questionId: string) => {
+    // Create a file input for camera capture
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        handleFileChange(questionId, file);
+      }
+    };
+    
+    input.click();
+  };
+
+  const uploadNewAttachments = async (): Promise<Record<string, string>> => {
+    const uploadedAttachments: Record<string, string> = {};
+    
+    for (const [questionId, file] of Object.entries(newFiles)) {
+      if (file && response) {
+        try {
+          console.log('Uploading new attachment for question:', questionId);
+          const fileUrl = await uploadFileToStorage(file, response.formId, response.id, questionId);
+          uploadedAttachments[questionId] = fileUrl;
+        } catch (error) {
+          console.error('Error uploading file:', error);
+          toast({
+            title: "Erro no upload",
+            description: `Não foi possível fazer upload do arquivo para a pergunta ${questionId}`,
+            variant: "destructive"
+          });
+        }
+      }
+    }
+    
+    return uploadedAttachments;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -55,8 +128,19 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
     
     setIsSubmitting(true);
     try {
+      // Upload new attachments
+      const uploadedAttachments = await uploadNewAttachments();
+      
+      // Merge existing attachments with new ones
+      const finalAttachments = {
+        ...attachments,
+        ...uploadedAttachments
+      };
+      
       console.log("Saving updated answers:", answers);
-      onSave(response.formId, answers);
+      console.log("Saving updated attachments:", finalAttachments);
+      
+      onSave(response.formId, answers, finalAttachments);
       onClose();
     } catch (error) {
       console.error("Error updating response:", error);
@@ -78,7 +162,7 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
         <DialogHeader>
           <DialogTitle>Editar Resposta</DialogTitle>
           <DialogDescription>
-            Modifique as respostas do formulário conforme necessário.
+            Modifique as respostas e anexos do formulário conforme necessário.
           </DialogDescription>
         </DialogHeader>
         
@@ -86,7 +170,8 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
           {questions.map((question) => {
             const questionId = question.id;
             const currentValue = answers[questionId] || '';
-            const hasAttachment = response.attachments && response.attachments[questionId];
+            const hasExistingAttachment = attachments[questionId];
+            const hasNewFile = newFiles[questionId];
             
             return (
               <div key={questionId} className="space-y-2">
@@ -95,6 +180,7 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
                   {question.required && <span className="text-red-500 ml-1">*</span>}
                 </Label>
                 
+                {/* Regular question input */}
                 {question.type === 'textarea' ? (
                   <Textarea
                     value={currentValue}
@@ -202,16 +288,100 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
                   />
                 )}
                 
-                {/* Show existing attachment if any */}
-                {hasAttachment && (
-                  <div className="mt-2">
-                    <p className="text-sm text-slate-600 mb-2">Anexo atual:</p>
-                    <AttachmentViewer
-                      attachments={response.attachments}
-                      questionId={questionId}
-                      questionTitle={question.title}
-                      showDownload={true}
-                    />
+                {/* Attachment section for questions that allow attachments */}
+                {question.allowAttachments && (
+                  <div className="mt-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
+                    <h4 className="text-sm font-medium text-slate-700 mb-3">Anexos</h4>
+                    
+                    {/* Show existing attachment */}
+                    {hasExistingAttachment && !hasNewFile && (
+                      <div className="mb-3">
+                        <p className="text-sm text-slate-600 mb-2">Anexo atual:</p>
+                        <AttachmentViewer
+                          attachments={attachments}
+                          questionId={questionId}
+                          questionTitle={question.title}
+                          showDownload={true}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemoveAttachment(questionId)}
+                          className="mt-2 text-red-500 hover:text-red-700"
+                        >
+                          Remover anexo atual
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Show new file preview */}
+                    {hasNewFile && (
+                      <div className="mb-3">
+                        <p className="text-sm text-slate-600 mb-2">Novo anexo:</p>
+                        <div className="bg-white border rounded p-3">
+                          {hasNewFile.type.startsWith('image/') ? (
+                            <img
+                              src={URL.createObjectURL(hasNewFile)}
+                              alt="Preview"
+                              className="max-h-32 w-auto object-contain mx-auto rounded"
+                            />
+                          ) : (
+                            <div className="flex items-center">
+                              <span className="text-sm truncate">{hasNewFile.name}</span>
+                              <span className="text-xs text-slate-500 ml-2">
+                                ({(hasNewFile.size / 1024).toFixed(0)} KB)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFileChange(questionId, null)}
+                          className="mt-2 text-red-500 hover:text-red-700"
+                        >
+                          Remover novo anexo
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* File upload controls */}
+                    {!hasNewFile && (
+                      <div className="flex flex-wrap gap-2">
+                        <div>
+                          <input
+                            type="file"
+                            id={`file-${questionId}`}
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleFileChange(questionId, file);
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => document.getElementById(`file-${questionId}`)?.click()}
+                          >
+                            {hasExistingAttachment ? 'Substituir arquivo' : 'Anexar arquivo'}
+                          </Button>
+                        </div>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCapturePhoto(questionId)}
+                        >
+                          {hasExistingAttachment ? 'Substituir foto' : 'Capturar foto'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
