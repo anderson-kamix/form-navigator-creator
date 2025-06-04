@@ -1,57 +1,79 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, FileText, BarChart3 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Download, FileSpreadsheet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface ResponseHeaderProps {
   title: string;
   formId: string;
   responseCount: number;
   onExportCSV: () => void;
+  onExportExcel: () => void;
 }
 
 const ResponseHeader: React.FC<ResponseHeaderProps> = ({
   title,
   formId,
   responseCount,
-  onExportCSV
+  onExportCSV,
+  onExportExcel
 }) => {
+  const navigate = useNavigate();
+
   return (
-    <div className="flex items-center justify-between mb-8">
-      <div className="flex items-center">
-        <Button variant="ghost" size="sm" asChild className="mr-4">
-          <Link to="/forms">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">{title}</h1>
-          <p className="text-slate-600">
-            {responseCount} {responseCount === 1 ? 'resposta recebida' : 'respostas recebidas'}
-          </p>
+    <Card className="mb-6">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate('/forms')}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar aos Formulários
+            </Button>
+            <div>
+              <CardTitle className="text-2xl">{title}</CardTitle>
+              <div className="flex items-center space-x-2 mt-2">
+                <Badge variant="secondary">
+                  {responseCount} {responseCount === 1 ? 'resposta' : 'respostas'}
+                </Badge>
+                <Badge variant="outline">ID: {formId}</Badge>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex space-x-2">
+            {responseCount > 0 && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={onExportCSV}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar CSV
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={onExportExcel}
+                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Exportar Excel
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="flex space-x-2">
-        <Button variant="outline" size="sm" onClick={onExportCSV} disabled={responseCount === 0}>
-          <Download className="w-4 h-4 mr-2" />
-          Exportar CSV
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link to={`/forms/${formId}`}>
-            <FileText className="w-4 h-4 mr-2" />
-            Ver Formulário
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link to={`/statistics/${formId}`}>
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Estatísticas
-          </Link>
-        </Button>
-      </div>
-    </div>
+      </CardHeader>
+    </Card>
   );
 };
 

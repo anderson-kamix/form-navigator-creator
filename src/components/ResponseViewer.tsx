@@ -11,7 +11,7 @@ import { loadFormResponses } from './form-viewer/utils/responseUtils';
 import ResponseEditModal from './form-viewer/ResponseEditModal';
 import ResponseDeleteDialog from './form-viewer/ResponseDeleteDialog';
 import { updateResponse, deleteResponse } from './form-viewer/utils/responseManagement';
-import { exportResponsesToCSV } from './response-viewer/utils/exportUtils';
+import { exportResponsesToCSV, exportResponsesToExcel } from './response-viewer/utils/exportUtils';
 import ResponseHeader from './response-viewer/ResponseHeader';
 import ResponseList from './response-viewer/ResponseList';
 import ResponseEmptyState from './response-viewer/ResponseEmptyState';
@@ -186,6 +186,12 @@ const ResponseViewer = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    if (form) {
+      exportResponsesToExcel(form, responses, allQuestions);
+    }
+  };
+
   const handleEditClick = (response: FormResponseData) => {
     console.log("Opening edit modal for response:", response);
     setSelectedResponse(response);
@@ -329,6 +335,7 @@ const ResponseViewer = () => {
         formId={id || ''}
         responseCount={responses.length}
         onExportCSV={handleExportCSV}
+        onExportExcel={handleExportExcel}
       />
 
       {responses.length === 0 ? (
