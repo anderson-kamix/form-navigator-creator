@@ -3,6 +3,7 @@ import { FormResponse } from '@/types/response';
 import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { convertAttachmentsToBase64 } from './fileUtils';
+import { uploadFileToStorage } from './storageUtils';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -66,24 +67,41 @@ export const saveFormResponse = async (
       console.log('Respostas das questões salvas:', questionAnswers.length);
     }
 
-    // Save attachments if any exist
+    // Save attachments to Supabase Storage and create attachment records
     const attachmentRecords = [];
     for (const [questionId, file] of Object.entries(attachments)) {
       if (file) {
         try {
-          // Convert file to base64
-          const base64Data = await convertFileToBase64(file);
+          console.log('Uploading attachment for question:', questionId);
           
+          // Upload file to storage
+          const fileUrl = await uploadFileToStorage(file, form.id, responseData.id, questionId);
+          
+          // Create attachment record in database
           attachmentRecords.push({
             response_id: responseData.id,
             question_id: questionId,
             file_name: file.name,
             file_type: file.type,
             file_size: file.size,
-            file_data: base64Data
+            file_data: fileUrl // Store the public URL instead of base64
           });
         } catch (error) {
           console.error('Erro ao processar anexo:', error);
+          // Fall back to base64 if storage upload fails
+          try {
+            const base64Data = await convertFileToBase64(file);
+            attachmentRecords.push({
+              response_id: responseData.id,
+              question_id: questionId,
+              file_name: file.name,
+              file_type: file.type,
+              file_size: file.size,
+              file_data: base64Data
+            });
+          } catch (base64Error) {
+            console.error('Erro ao converter para base64:', base64Error);
+          }
         }
       }
     }

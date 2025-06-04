@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { QuestionWithSection } from '../form-viewer/utils/sectionUtils';
 import { toast } from "@/hooks/use-toast";
+import AttachmentViewer from './AttachmentViewer';
 
 // Interface local para as respostas
 interface FormResponseData {
@@ -85,6 +86,7 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
           {questions.map((question) => {
             const questionId = question.id;
             const currentValue = answers[questionId] || '';
+            const hasAttachment = response.attachments && response.attachments[questionId];
             
             return (
               <div key={questionId} className="space-y-2">
@@ -198,6 +200,19 @@ const ResponseEditModal = ({ open, onClose, response, questions, onSave }: Respo
                     onChange={(e) => handleAnswerChange(questionId, e.target.value)}
                     placeholder="Digite sua resposta aqui..."
                   />
+                )}
+                
+                {/* Show existing attachment if any */}
+                {hasAttachment && (
+                  <div className="mt-2">
+                    <p className="text-sm text-slate-600 mb-2">Anexo atual:</p>
+                    <AttachmentViewer
+                      attachments={response.attachments}
+                      questionId={questionId}
+                      questionTitle={question.title}
+                      showDownload={true}
+                    />
+                  </div>
                 )}
               </div>
             );
