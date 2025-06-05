@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Form } from '@/types/form';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +11,7 @@ import { loadFormResponses } from './form-viewer/utils/responseUtils';
 import ResponseEditModal from './form-viewer/ResponseEditModal';
 import ResponseDeleteDialog from './form-viewer/ResponseDeleteDialog';
 import { updateResponse, deleteResponse } from './form-viewer/utils/responseManagement';
-import { exportResponsesToCSV, exportResponsesToExcel } from './response-viewer/utils/exportUtils';
+import { exportResponsesToExcel } from './response-viewer/utils/exportUtils';
 import ResponseHeader from './response-viewer/ResponseHeader';
 import ResponseList from './response-viewer/ResponseList';
 import ResponseEmptyState from './response-viewer/ResponseEmptyState';
@@ -303,17 +303,23 @@ const ResponseViewer = () => {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="flex items-center mb-8">
-          <Skeleton className="h-10 w-10 rounded-full mr-4" />
-          <div>
-            <Skeleton className="h-8 w-64 mb-2" />
-            <Skeleton className="h-4 w-40" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
+                  <div>
+                    <div className="h-8 w-64 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 w-40 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                <div className="h-10 w-32 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border h-96"></div>
           </div>
-        </div>
-        
-        <div className="space-y-6">
-          <Skeleton className="h-96 w-full rounded-lg" />
         </div>
       </div>
     );
@@ -321,72 +327,78 @@ const ResponseViewer = () => {
 
   if (!form) {
     return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold mb-4">Formulário não encontrado</h1>
-        <p className="mb-6">O formulário que você está procurando não existe ou foi removido.</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Formulário não encontrado</h1>
+          <p className="text-gray-600">O formulário que você está procurando não existe ou foi removido.</p>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <ResponseHeader 
-        title={form?.title || ''}
-        formId={id || ''}
-        responseCount={responses.length}
-        onExportCSV={handleExportCSV}
-        onExportExcel={handleExportExcel}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <ResponseHeader 
+          title={form?.title || ''}
+          formId={id || ''}
+          responseCount={responses.length}
+          onExportExcel={handleExportExcel}
+        />
 
-      {responses.length === 0 ? (
-        <ResponseEmptyState formId={id || ''} />
-      ) : (
-        <div className="space-y-6">
-          <Tabs defaultValue="list">
-            <TabsList>
-              <TabsTrigger value="list">Lista de Respostas</TabsTrigger>
-              <TabsTrigger value="individual">Respostas Individuais</TabsTrigger>
-            </TabsList>
-            <TabsContent value="list" className="mt-4">
+        {responses.length === 0 ? (
+          <ResponseEmptyState formId={id || ''} />
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Respostas do Formulário</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Visualize e gerencie todas as respostas recebidas
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium">
+                    {responses.length} {responses.length === 1 ? 'resposta' : 'respostas'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
               <ResponseList 
                 responses={responses} 
                 questions={allQuestions}
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
               />
-            </TabsContent>
-            <TabsContent value="individual">
-              <Card>
-                <div className="p-6">
-                  <p>Visualização individual de respostas em desenvolvimento.</p>
-                </div>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      )}
+            </div>
+          </div>
+        )}
 
-      {/* Edit Modal */}
-      <ResponseEditModal
-        open={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setSelectedResponse(null);
-        }}
-        response={selectedResponse}
-        questions={allQuestions}
-        onSave={handleSaveResponse}
-      />
+        {/* Edit Modal */}
+        <ResponseEditModal
+          open={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedResponse(null);
+          }}
+          response={selectedResponse}
+          questions={allQuestions}
+          onSave={handleSaveResponse}
+        />
 
-      {/* Delete Confirmation Dialog */}
-      <ResponseDeleteDialog
-        open={isDeleteDialogOpen}
-        onClose={() => {
-          setIsDeleteDialogOpen(false);
-          setResponseToDelete(null);
-        }}
-        onConfirm={handleDeleteResponse}
-      />
+        {/* Delete Confirmation Dialog */}
+        <ResponseDeleteDialog
+          open={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setResponseToDelete(null);
+          }}
+          onConfirm={handleDeleteResponse}
+        />
+      </div>
     </div>
   );
 };
