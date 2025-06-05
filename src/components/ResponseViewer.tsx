@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Form } from '@/types/form';
@@ -177,12 +176,6 @@ const ResponseViewer = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleExportCSV = () => {
-    if (form) {
-      exportResponsesToCSV(form, responses, allQuestions);
     }
   };
 
