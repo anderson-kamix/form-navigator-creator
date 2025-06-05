@@ -94,14 +94,22 @@ export const exportResponsesToExcel = (
     // Preparar dados para a planilha principal
     const worksheetData: any[][] = [];
     
-    // Cabeçalho da planilha
+    // Criar cabeçalhos dinamicamente incluindo colunas de anexos
     const headers = [
       'ID da Resposta',
       'Data de Envio',
       'Endereço IP',
-      'User Agent',
-      ...questions.map(q => q.title)
+      'User Agent'
     ];
+    
+    // Adicionar cabeçalhos das perguntas e suas respectivas colunas de anexos
+    questions.forEach(q => {
+      headers.push(q.title);
+      if (q.allowAttachments) {
+        headers.push(`${q.title} - Tem Anexo?`);
+      }
+    });
+    
     worksheetData.push(headers);
     
     // Adicionar dados das respostas
@@ -113,7 +121,7 @@ export const exportResponsesToExcel = (
         response.userAgent || 'N/A'
       ];
       
-      // Adicionar resposta para cada pergunta
+      // Adicionar resposta e status de anexo para cada pergunta
       questions.forEach(question => {
         const answer = response.answers[question.id];
         let formattedAnswer = '';
@@ -127,6 +135,12 @@ export const exportResponsesToExcel = (
         }
         
         row.push(formattedAnswer);
+        
+        // Se a pergunta permite anexos, adicionar coluna indicando se tem anexo
+        if (question.allowAttachments) {
+          const hasAttachment = response.attachments && response.attachments[question.id];
+          row.push(hasAttachment ? 'Sim' : 'Não');
+        }
       });
       
       worksheetData.push(row);
@@ -135,12 +149,17 @@ export const exportResponsesToExcel = (
     // Criar planilha principal
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
     
-    // Ajustar largura das colunas
+    // Ajustar largura das colunas dinamicamente
     const colWidths = headers.map((header, index) => {
       if (index === 0) return { wch: 20 }; // ID da Resposta
       if (index === 1) return { wch: 20 }; // Data
       if (index === 2) return { wch: 15 }; // IP
       if (index === 3) return { wch: 30 }; // User Agent
+      
+      // Para perguntas e colunas de anexos
+      if (header.includes('- Tem Anexo?')) {
+        return { wch: 15 }; // Coluna de anexo
+      }
       
       // Para perguntas, calcular largura baseada no conteúdo
       const maxLength = Math.max(
@@ -192,7 +211,7 @@ export const exportResponsesToExcel = (
     const statsData: any[][] = [
       ['Estatísticas das Respostas'],
       [''],
-      ['Pergunta', 'Total de Respostas', 'Taxa de Resposta (%)'],
+      ['Pergunta', 'Total de Respostas', 'Taxa de Resposta (%)', 'Total com Anexos'],
     ];
     
     questions.forEach(question => {
@@ -203,16 +222,23 @@ export const exportResponsesToExcel = (
       
       const responseRate = responses.length > 0 ? ((answeredCount / responses.length) * 100).toFixed(1) : '0';
       
+      // Contar quantas respostas têm anexos para esta pergunta
+      const attachmentCount = question.allowAttachments 
+        ? responses.filter(r => r.attachments && r.attachments[question.id]).length
+        : 0;
+      
       statsData.push([
         question.title,
         answeredCount,
-        `${responseRate}%`
+        `${responseRate}%`,
+        question.allowAttachments ? attachmentCount : 'N/A'
       ]);
     });
     
     const statsWorksheet = XLSX.utils.aoa_to_sheet(statsData);
     statsWorksheet['!cols'] = [
       { wch: 40 },
+      { wch: 20 },
       { wch: 20 },
       { wch: 20 }
     ];
