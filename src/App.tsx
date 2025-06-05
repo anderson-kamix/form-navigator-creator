@@ -15,6 +15,7 @@ import FormEditor from "@/components/FormEditor";
 import FormViewer from "@/components/FormViewer";
 import ResponseViewer from "@/components/ResponseViewer";
 import Statistics from "@/components/Statistics";
+import UserManagement from "@/components/UserManagement";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +55,7 @@ const App = () => (
                           <Route path="/forms/:id" element={<FormViewer />} />
                           <Route path="/responses/:id" element={<ResponseViewer />} />
                           <Route path="/statistics/:id" element={<Statistics />} />
+                          <Route path="/users" element={<UserManagement />} />
                         </Routes>
                       </main>
                     </div>

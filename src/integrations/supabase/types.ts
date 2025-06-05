@@ -353,23 +353,47 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          can_create_forms: boolean | null
+          can_delete_forms: boolean | null
+          can_edit_forms: boolean | null
+          can_view_responses: boolean | null
           created_at: string
           email: string
           id: string
+          is_active: boolean | null
+          permission_level:
+            | Database["public"]["Enums"]["user_permission_level"]
+            | null
           updated_at: string
           user_type: Database["public"]["Enums"]["user_type"]
         }
         Insert: {
+          can_create_forms?: boolean | null
+          can_delete_forms?: boolean | null
+          can_edit_forms?: boolean | null
+          can_view_responses?: boolean | null
           created_at?: string
           email: string
           id: string
+          is_active?: boolean | null
+          permission_level?:
+            | Database["public"]["Enums"]["user_permission_level"]
+            | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
         }
         Update: {
+          can_create_forms?: boolean | null
+          can_delete_forms?: boolean | null
+          can_edit_forms?: boolean | null
+          can_view_responses?: boolean | null
           created_at?: string
           email?: string
           id?: string
+          is_active?: boolean | null
+          permission_level?:
+            | Database["public"]["Enums"]["user_permission_level"]
+            | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
         }
@@ -380,6 +404,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_users: {
+        Args: { user_id?: string }
+        Returns: boolean
+      }
       create_form_responses_table: {
         Args: { form_id: string }
         Returns: string
@@ -394,6 +422,7 @@ export type Database = {
       }
     }
     Enums: {
+      user_permission_level: "viewer" | "editor" | "admin" | "master_admin"
       user_type: "master_admin" | "user"
     }
     CompositeTypes: {
@@ -510,6 +539,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      user_permission_level: ["viewer", "editor", "admin", "master_admin"],
       user_type: ["master_admin", "user"],
     },
   },
