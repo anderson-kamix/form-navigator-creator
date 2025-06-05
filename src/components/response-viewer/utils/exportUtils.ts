@@ -1,16 +1,26 @@
 
 import { QuestionWithSection } from '../../form-viewer/utils/sectionUtils';
-import { Response } from '../../form-viewer/useFormViewerState';
 import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
+
+// Interface para as respostas com todas as propriedades necessárias
+interface FormResponseData {
+  id: string;
+  submittedAt: Date;
+  answers: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  formId: string;
+  attachments: Record<string, string>;
+}
 
 /**
  * Exports responses to a CSV file
  */
 export const exportResponsesToCSV = (
   form: Form, 
-  responses: Response[], 
+  responses: FormResponseData[], 
   questions: QuestionWithSection[]
 ): void => {
   if (!form || responses.length === 0) return;
@@ -65,7 +75,7 @@ export const exportResponsesToCSV = (
  */
 export const exportResponsesToExcel = (
   form: Form, 
-  responses: Response[], 
+  responses: FormResponseData[], 
   questions: QuestionWithSection[]
 ): void => {
   if (!form || responses.length === 0) {
