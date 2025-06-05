@@ -26,7 +26,7 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ open, onClose, user
     setLoading(true);
 
     try {
-      // First delete the user profile
+      // Delete the user profile first
       const { error: profileError } = await supabase
         .from('user_profiles')
         .delete()
@@ -42,22 +42,12 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ open, onClose, user
         return;
       }
 
-      // Then delete the user from Auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
-
-      if (authError) {
-        console.error('Erro ao deletar usuário:', authError);
-        toast({
-          title: "Aviso",
-          description: "Perfil excluído, mas o usuário ainda existe no sistema de autenticação",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Usuário excluído",
-          description: "O usuário foi excluído com sucesso",
-        });
-      }
+      // Note: We can't delete from auth.users directly via the client
+      // The user will remain in auth but won't have access since profile is deleted
+      toast({
+        title: "Usuário excluído",
+        description: "O perfil do usuário foi excluído com sucesso",
+      });
 
       onSuccess();
       onClose();

@@ -32,11 +32,15 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose, onSucc
     setLoading(true);
 
     try {
-      // First, create the user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Create the user using sign up (they'll need to confirm email)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        email_confirm: true,
+        options: {
+          data: {
+            created_by_admin: true
+          }
+        }
       });
 
       if (authError) {
@@ -58,10 +62,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose, onSucc
         return;
       }
 
-      // Then create or update the user profile
+      // Create the user profile directly in the database
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .upsert({
+        .insert({
           id: authData.user.id,
           email: formData.email,
           user_type: 'user',
@@ -85,7 +89,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose, onSucc
 
       toast({
         title: "Usuário criado",
-        description: "O usuário foi criado com sucesso",
+        description: "O usuário foi criado com sucesso. Ele receberá um email de confirmação.",
       });
 
       // Reset form and close modal
