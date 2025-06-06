@@ -34,6 +34,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
+    password: '',
     permissionLevel: 'viewer' as 'viewer' | 'editor' | 'admin',
     canCreateForms: false,
     canEditForms: false,
@@ -46,6 +47,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
     if (user && open) {
       setFormData({
         email: user.email,
+        password: '',
         permissionLevel: user.permission_level as 'viewer' | 'editor' | 'admin',
         canCreateForms: user.can_create_forms,
         canEditForms: user.can_edit_forms,
@@ -63,9 +65,50 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
     setLoading(true);
 
     try {
-      console.log('Atualizando perfil do usuário...');
+      console.log('Atualizando usuário...');
 
-      // Atualizar apenas o perfil do usuário na tabela user_profiles
+      // Atualizar email se foi alterado (apenas Master Admins)
+      if (isMasterAdmin && formData.email !== user.email) {
+        console.log('Atualizando email do usuário...');
+        const { error: emailError } = await supabase.auth.admin.updateUserById(
+          user.id,
+          { email: formData.email }
+        );
+
+        if (emailError) {
+          console.error('Erro ao atualizar email:', emailError);
+          toast({
+            title: "Erro",
+            description: emailError.message || "Não foi possível atualizar o email do usuário",
+            variant: "destructive",
+          });
+          return;
+        }
+        console.log('Email atualizado com sucesso');
+      }
+
+      // Atualizar senha se foi fornecida (apenas Master Admins)
+      if (isMasterAdmin && formData.password.trim()) {
+        console.log('Atualizando senha do usuário...');
+        const { error: passwordError } = await supabase.auth.admin.updateUserById(
+          user.id,
+          { password: formData.password }
+        );
+
+        if (passwordError) {
+          console.error('Erro ao atualizar senha:', passwordError);
+          toast({
+            title: "Erro",
+            description: passwordError.message || "Não foi possível atualizar a senha do usuário",
+            variant: "destructive",
+          });
+          return;
+        }
+        console.log('Senha atualizada com sucesso');
+      }
+
+      // Atualizar perfil do usuário na tabela user_profiles
+      console.log('Atualizando perfil do usuário...');
       const { error: profileError } = await supabase
         .from('user_profiles')
         .update({
@@ -159,9 +202,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
                   required
                   placeholder="usuario@exemplo.com"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Nota: Para alterar a senha, o usuário deve usar a opção "Alterar Senha" em sua conta
-                </p>
               </div>
             ) : (
               <div>
@@ -169,6 +209,23 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
                 <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
                   {user.email}
                 </div>
+              </div>
+            )}
+
+            {isMasterAdmin && (
+              <div>
+                <Label htmlFor="password">Nova Senha (opcional)</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="••••••••"
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Deixe em branco para manter a senha atual
+                </p>
               </div>
             )}
 
