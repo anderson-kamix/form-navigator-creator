@@ -70,6 +70,8 @@ const AuthPage = () => {
           errorMessage = 'Por favor, confirme seu email antes de fazer login.';
         } else if (error.message.includes('Too many requests')) {
           errorMessage = 'Muitas tentativas de login. Aguarde alguns minutos.';
+        } else if (error.message.includes('User not found')) {
+          errorMessage = 'Usuário não encontrado. Verifique o email informado.';
         } else {
           errorMessage = `Erro: ${error.message}`;
         }

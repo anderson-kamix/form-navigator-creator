@@ -44,6 +44,8 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
     setLoading(true);
 
     try {
+      console.log('Tentando atualizar senha...');
+      
       const { error } = await supabase.auth.updateUser({
         password: formData.newPassword
       });
@@ -58,6 +60,8 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
         return;
       }
 
+      console.log('Senha alterada com sucesso');
+      
       toast({
         title: "Senha alterada",
         description: "Sua senha foi alterada com sucesso",
@@ -72,7 +76,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
 
       onClose();
     } catch (error) {
-      console.error('Erro inesperado:', error);
+      console.error('Erro inesperado ao alterar senha:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao alterar a senha",
@@ -83,8 +87,17 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
     }
   };
 
+  const handleClose = () => {
+    setFormData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Alterar Senha</DialogTitle>
@@ -120,7 +133,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
           </div>
 
           <div className="flex justify-end space-x-3">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
