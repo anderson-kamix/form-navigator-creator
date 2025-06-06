@@ -15,7 +15,6 @@ interface ChangePasswordModalProps {
 const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
@@ -44,8 +43,9 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
     setLoading(true);
 
     try {
-      console.log('Tentando atualizar senha...');
+      console.log('Tentando atualizar senha do usuário atual...');
       
+      // Usar updateUser para alterar a própria senha
       const { error } = await supabase.auth.updateUser({
         password: formData.newPassword
       });
@@ -69,7 +69,6 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
 
       // Reset form
       setFormData({
-        currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
@@ -89,7 +88,6 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose
 
   const handleClose = () => {
     setFormData({
-      currentPassword: '',
       newPassword: '',
       confirmPassword: '',
     });
