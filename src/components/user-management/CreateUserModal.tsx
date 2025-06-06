@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -62,12 +61,13 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose, onSucc
         return;
       }
 
-      // Create the user profile directly in the database
+      // Wait a moment for the trigger to create the basic profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Update the user profile with the specific permissions
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .insert({
-          id: authData.user.id,
-          email: formData.email,
+        .update({
           user_type: 'user',
           permission_level: formData.permissionLevel,
           can_create_forms: formData.canCreateForms,
@@ -75,10 +75,12 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose, onSucc
           can_delete_forms: formData.canDeleteForms,
           can_view_responses: formData.canViewResponses,
           is_active: true,
-        });
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', authData.user.id);
 
       if (profileError) {
-        console.error('Erro ao criar perfil:', profileError);
+        console.error('Erro ao atualizar perfil:', profileError);
         toast({
           title: "Erro",
           description: "Usuário criado mas perfil não foi configurado corretamente",
