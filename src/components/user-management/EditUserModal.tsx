@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UserProfile {
   id: string;
@@ -28,8 +30,11 @@ interface EditUserModalProps {
 }
 
 const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSuccess }) => {
+  const { isMasterAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    email: '',
+    password: '',
     permissionLevel: 'viewer' as 'viewer' | 'editor' | 'admin',
     canCreateForms: false,
     canEditForms: false,
@@ -41,6 +46,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
   useEffect(() => {
     if (user && open) {
       setFormData({
+        email: user.email,
+        password: '',
         permissionLevel: user.permission_level as 'viewer' | 'editor' | 'admin',
         canCreateForms: user.can_create_forms,
         canEditForms: user.can_edit_forms,
@@ -58,9 +65,47 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      // Atualizar email se foi alterado (apenas admins)
+      if (isMasterAdmin && formData.email !== user.email) {
+        const { error: emailError } = await supabase.auth.admin.updateUserById(
+          user.id,
+          { email: formData.email }
+        );
+
+        if (emailError) {
+          console.error('Erro ao atualizar email:', emailError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível atualizar o email do usuário",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Atualizar senha se foi fornecida (apenas admins)
+      if (isMasterAdmin && formData.password.trim()) {
+        const { error: passwordError } = await supabase.auth.admin.updateUserById(
+          user.id,
+          { password: formData.password }
+        );
+
+        if (passwordError) {
+          console.error('Erro ao atualizar senha:', passwordError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível atualizar a senha do usuário",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Atualizar perfil do usuário
+      const { error: profileError } = await supabase
         .from('user_profiles')
         .update({
+          email: formData.email,
           permission_level: formData.permissionLevel,
           can_create_forms: formData.canCreateForms,
           can_edit_forms: formData.canEditForms,
@@ -71,11 +116,11 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
         })
         .eq('id', user.id);
 
-      if (error) {
-        console.error('Erro ao atualizar usuário:', error);
+      if (profileError) {
+        console.error('Erro ao atualizar perfil:', profileError);
         toast({
           title: "Erro",
-          description: "Não foi possível atualizar o usuário",
+          description: "Não foi possível atualizar o perfil do usuário",
           variant: "destructive",
         });
         return;
@@ -83,7 +128,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
 
       toast({
         title: "Usuário atualizado",
-        description: "As permissões do usuário foram atualizadas com sucesso",
+        description: "As informações do usuário foram atualizadas com sucesso",
       });
 
       onSuccess();
@@ -137,18 +182,50 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div>
-              <Label>Email</Label>
-              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                {user.email}
+            {isMasterAdmin ? (
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                  placeholder="usuario@exemplo.com"
+                />
               </div>
-            </div>
+            ) : (
+              <div>
+                <Label>Email</Label>
+                <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                  {user.email}
+                </div>
+              </div>
+            )}
+
+            {isMasterAdmin && (
+              <div>
+                <Label htmlFor="password">Nova Senha (opcional)</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="••••••••"
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Deixe em branco para manter a senha atual
+                </p>
+              </div>
+            )}
 
             <div>
               <Label>Nível de Permissão</Label>
               <Select
                 value={formData.permissionLevel}
                 onValueChange={handlePermissionLevelChange}
+                disabled={!isMasterAdmin}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -171,6 +248,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
                   onCheckedChange={(checked) =>
                     setFormData(prev => ({ ...prev, canCreateForms: !!checked }))
                   }
+                  disabled={!isMasterAdmin}
                 />
                 <Label htmlFor="canCreateForms" className="text-sm">
                   Pode criar formulários
@@ -184,6 +262,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
                   onCheckedChange={(checked) =>
                     setFormData(prev => ({ ...prev, canEditForms: !!checked }))
                   }
+                  disabled={!isMasterAdmin}
                 />
                 <Label htmlFor="canEditForms" className="text-sm">
                   Pode editar formulários
@@ -197,6 +276,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
                   onCheckedChange={(checked) =>
                     setFormData(prev => ({ ...prev, canDeleteForms: !!checked }))
                   }
+                  disabled={!isMasterAdmin}
                 />
                 <Label htmlFor="canDeleteForms" className="text-sm">
                   Pode excluir formulários
@@ -210,24 +290,27 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
                   onCheckedChange={(checked) =>
                     setFormData(prev => ({ ...prev, canViewResponses: !!checked }))
                   }
+                  disabled={!isMasterAdmin}
                 />
                 <Label htmlFor="canViewResponses" className="text-sm">
                   Pode visualizar respostas
                 </Label>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) =>
-                    setFormData(prev => ({ ...prev, isActive: !!checked }))
-                  }
-                />
-                <Label htmlFor="isActive" className="text-sm">
-                  Usuário ativo
-                </Label>
-              </div>
+              {isMasterAdmin && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) =>
+                      setFormData(prev => ({ ...prev, isActive: !!checked }))
+                    }
+                  />
+                  <Label htmlFor="isActive" className="text-sm">
+                    Usuário ativo
+                  </Label>
+                </div>
+              )}
             </div>
           </div>
 

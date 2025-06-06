@@ -1,15 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users, Edit, Trash2 } from 'lucide-react';
+import { Plus, Users, Edit, Trash2, Key } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import CreateUserModal from './user-management/CreateUserModal';
 import EditUserModal from './user-management/EditUserModal';
 import DeleteUserDialog from './user-management/DeleteUserDialog';
+import ChangePasswordModal from './user-management/ChangePasswordModal';
 
 interface UserProfile {
   id: string;
@@ -26,12 +26,13 @@ interface UserProfile {
 }
 
 const UserManagement = () => {
-  const { isMasterAdmin } = useAuth();
+  const { isMasterAdmin, user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
@@ -82,6 +83,10 @@ const UserManagement = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleChangePassword = () => {
+    setIsChangePasswordModalOpen(true);
+  };
+
   const getPermissionBadge = (user: UserProfile) => {
     if (user.user_type === 'master_admin') {
       return <Badge variant="destructive">Master Admin</Badge>;
@@ -117,11 +122,34 @@ const UserManagement = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6 lg:p-8">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Acesso Negado</h1>
-            <p className="text-gray-600">Você não tem permissão para acessar esta página.</p>
+          <Card className="p-8">
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">Minha Conta</h1>
+              <p className="text-gray-600">Gerencie suas informações pessoais</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Email</Label>
+                <div className="mt-1 p-3 bg-gray-50 border rounded-md text-gray-900">
+                  {currentUser?.email}
+                </div>
+              </div>
+              
+              <div className="flex justify-center">
+                <Button onClick={handleChangePassword} className="flex items-center space-x-2">
+                  <Key className="w-4 h-4" />
+                  <span>Alterar Senha</span>
+                </Button>
+              </div>
+            </div>
           </Card>
         </div>
+        
+        <ChangePasswordModal
+          open={isChangePasswordModalOpen}
+          onClose={() => setIsChangePasswordModalOpen(false)}
+        />
       </div>
     );
   }
@@ -160,10 +188,20 @@ const UserManagement = () => {
                   </p>
                 </div>
               </div>
-              <Button onClick={handleCreateUser} className="flex items-center space-x-2">
-                <Plus className="w-4 h-4" />
-                <span>Novo Usuário</span>
-              </Button>
+              <div className="flex items-center space-x-3">
+                <Button 
+                  variant="outline" 
+                  onClick={handleChangePassword} 
+                  className="flex items-center space-x-2"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>Alterar Minha Senha</span>
+                </Button>
+                <Button onClick={handleCreateUser} className="flex items-center space-x-2">
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Usuário</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -278,6 +316,11 @@ const UserManagement = () => {
           }}
           user={selectedUser}
           onSuccess={loadUsers}
+        />
+
+        <ChangePasswordModal
+          open={isChangePasswordModalOpen}
+          onClose={() => setIsChangePasswordModalOpen(false)}
         />
       </div>
     </div>
