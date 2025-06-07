@@ -67,44 +67,41 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
     try {
       console.log('Atualizando usuário...');
 
-      // Atualizar email se foi alterado (apenas Master Admins)
-      if (isMasterAdmin && formData.email !== user.email) {
-        console.log('Atualizando email do usuário...');
-        const { error: emailError } = await supabase.auth.admin.updateUserById(
-          user.id,
-          { email: formData.email }
-        );
-
-        if (emailError) {
-          console.error('Erro ao atualizar email:', emailError);
-          toast({
-            title: "Erro",
-            description: emailError.message || "Não foi possível atualizar o email do usuário",
-            variant: "destructive",
-          });
-          return;
+      // Atualizar email e/ou senha se foi alterado (apenas Master Admins)
+      if (isMasterAdmin && (formData.email !== user.email || formData.password.trim())) {
+        console.log('Chamando Edge Function para atualizar credenciais...');
+        
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          throw new Error('Sessão não encontrada');
         }
-        console.log('Email atualizado com sucesso');
-      }
 
-      // Atualizar senha se foi fornecida (apenas Master Admins)
-      if (isMasterAdmin && formData.password.trim()) {
-        console.log('Atualizando senha do usuário...');
-        const { error: passwordError } = await supabase.auth.admin.updateUserById(
-          user.id,
-          { password: formData.password }
-        );
-
-        if (passwordError) {
-          console.error('Erro ao atualizar senha:', passwordError);
-          toast({
-            title: "Erro",
-            description: passwordError.message || "Não foi possível atualizar a senha do usuário",
-            variant: "destructive",
-          });
-          return;
+        const updateData: any = { userId: user.id };
+        
+        if (formData.email !== user.email) {
+          updateData.email = formData.email;
         }
-        console.log('Senha atualizada com sucesso');
+        
+        if (formData.password.trim()) {
+          updateData.password = formData.password;
+        }
+
+        const response = await fetch('/functions/v1/update-user-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.session.access_token}`,
+          },
+          body: JSON.stringify(updateData),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Erro ao atualizar credenciais');
+        }
+
+        console.log('Credenciais atualizadas com sucesso');
       }
 
       // Atualizar perfil do usuário na tabela user_profiles
@@ -146,7 +143,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
       console.error('Erro inesperado:', error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado ao atualizar o usuário",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado ao atualizar o usuário",
         variant: "destructive",
       });
     } finally {
