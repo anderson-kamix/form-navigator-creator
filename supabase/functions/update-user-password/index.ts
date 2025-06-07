@@ -134,11 +134,13 @@ serve(async (req) => {
     // Update email if provided
     if (email) {
       updates.email = email
+      updates.email_confirm = true // Automatically confirm email
     }
 
     // Update password if provided
     if (password) {
       updates.password = password
+      updates.email_confirm = true // Automatically confirm email when password is updated
     }
 
     if (Object.keys(updates).length === 0) {
@@ -153,6 +155,7 @@ serve(async (req) => {
     }
 
     console.log('Attempting to update user with admin client...');
+    console.log('Updates to be applied:', updates);
 
     // Update user using admin client
     const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
