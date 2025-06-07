@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('Buscando perfil para usuário:', userId);
       const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -53,6 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
       
+      console.log('Perfil encontrado:', profile);
       return profile as UserProfile;
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
@@ -75,14 +77,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (session?.user) {
           // Fetch user profile after setting session
-          setTimeout(async () => {
-            if (mounted) {
-              const profile = await fetchUserProfile(session.user.id);
-              if (mounted) {
-                setUserProfile(profile);
-              }
-            }
-          }, 0);
+          const profile = await fetchUserProfile(session.user.id);
+          if (mounted) {
+            setUserProfile(profile);
+          }
         } else {
           setUserProfile(null);
         }
@@ -155,12 +153,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Calcular permissões baseadas no perfil do usuário
   const isMasterAdmin = userProfile?.user_type === 'master_admin';
   const isAdmin = userProfile?.permission_level === 'admin' || isMasterAdmin;
-  const canCreateForms = userProfile?.can_create_forms || isMasterAdmin;
-  const canEditForms = userProfile?.can_edit_forms || isMasterAdmin;
-  const canDeleteForms = userProfile?.can_delete_forms || isMasterAdmin;
-  const canViewResponses = userProfile?.can_view_responses ?? true;
+  
+  // Master admin tem todas as permissões
+  // Outros usuários seguem as permissões específicas
+  const canCreateForms = isMasterAdmin || (userProfile?.can_create_forms ?? false);
+  const canEditForms = isMasterAdmin || (userProfile?.can_edit_forms ?? false);
+  const canDeleteForms = isMasterAdmin || (userProfile?.can_delete_forms ?? false);
+  const canViewResponses = isMasterAdmin || (userProfile?.can_view_responses ?? true);
+
+  console.log('Permissões calculadas:', {
+    isMasterAdmin,
+    isAdmin,
+    canCreateForms,
+    canEditForms,
+    canDeleteForms,
+    canViewResponses,
+    userProfile
+  });
 
   const value = {
     user,

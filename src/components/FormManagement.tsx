@@ -45,25 +45,50 @@ const FormManagement = () => {
   const [loading, setLoading] = useState(true);
   const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
   const [selectedFormForPermissions, setSelectedFormForPermissions] = useState<Form | null>(null);
-  const { user, isMasterAdmin, isAdmin, canCreateForms, canEditForms, canDeleteForms } = useAuth();
+  const { user, userProfile, isMasterAdmin, isAdmin, canCreateForms, canEditForms, canDeleteForms } = useAuth();
 
   useEffect(() => {
     loadForms();
-  }, []);
+  }, [userProfile]);
 
   const loadForms = async () => {
+    if (!userProfile) {
+      console.log('User profile not loaded yet');
+      return;
+    }
+
     try {
+      console.log('Carregando formulários do Supabase...');
+      console.log('Perfil do usuário:', userProfile);
+      console.log('É master admin:', isMasterAdmin);
+      console.log('É admin:', isAdmin);
+
       let query = supabase.from('forms').select('*');
       
-      // Se não for master admin nem admin, carregar apenas formulários próprios
-      if (!isMasterAdmin && !isAdmin) {
+      // Master admin vê todos os formulários
+      if (isMasterAdmin) {
+        console.log('Master admin - carregando todos os formulários');
+        // Não adiciona filtros
+      }
+      // Admin vê todos os formulários
+      else if (isAdmin) {
+        console.log('Admin - carregando todos os formulários');
+        // Não adiciona filtros
+      }
+      // Usuários normais veem apenas seus próprios formulários
+      else {
+        console.log('Usuário normal - carregando apenas formulários próprios');
         query = query.eq('user_id', user?.id);
       }
       
       const { data: formsData, error } = await query.order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar formulários:', error);
+        throw error;
+      }
 
+      console.log('Formulários carregados:', formsData);
       setForms(formsData || []);
       
       // Carregar contagem de respostas para cada formulário do Supabase
@@ -226,7 +251,7 @@ src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="
     setPermissionsModalOpen(true);
   };
 
-  if (loading) {
+  if (!userProfile || loading) {
     return (
       <div className="p-8">
         <div className="text-center">Carregando formulários...</div>
@@ -250,6 +275,7 @@ src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="
             }
           </p>
         </div>
+        {/* Mostrar botão apenas se o usuário tem permissão para criar formulários */}
         {canCreateForms && (
           <Button asChild>
             <Link to="/forms/new">
