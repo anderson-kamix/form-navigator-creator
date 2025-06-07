@@ -8,6 +8,12 @@ interface UserProfile {
   id: string;
   email: string;
   user_type: 'master_admin' | 'user';
+  permission_level: 'viewer' | 'editor' | 'admin' | 'master_admin';
+  can_create_forms: boolean;
+  can_edit_forms: boolean;
+  can_delete_forms: boolean;
+  can_view_responses: boolean;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -19,6 +25,11 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   isMasterAdmin: boolean;
+  canCreateForms: boolean;
+  canEditForms: boolean;
+  canDeleteForms: boolean;
+  canViewResponses: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -145,6 +156,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const isMasterAdmin = userProfile?.user_type === 'master_admin';
+  const isAdmin = userProfile?.permission_level === 'admin' || isMasterAdmin;
+  const canCreateForms = userProfile?.can_create_forms || isMasterAdmin;
+  const canEditForms = userProfile?.can_edit_forms || isMasterAdmin;
+  const canDeleteForms = userProfile?.can_delete_forms || isMasterAdmin;
+  const canViewResponses = userProfile?.can_view_responses ?? true;
 
   const value = {
     user,
@@ -153,6 +169,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loading,
     signOut,
     isMasterAdmin,
+    canCreateForms,
+    canEditForms,
+    canDeleteForms,
+    canViewResponses,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

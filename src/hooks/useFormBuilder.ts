@@ -25,9 +25,10 @@ export const useFormBuilder = (isEditing = false) => {
     }
   ]);
   const [loading, setLoading] = useState(isEditing);
+  const [formOwnerId, setFormOwnerId] = useState<string | null>(null);
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canCreateForms, canEditForms, isMasterAdmin } = useAuth();
 
   useEffect(() => {
     if (isEditing && id) {
@@ -48,6 +49,22 @@ export const useFormBuilder = (isEditing = false) => {
         .single();
 
       if (formError) throw formError;
+
+      // Verificar se o usuário tem permissão para editar este formulário
+      const canEdit = isMasterAdmin || 
+                     (form.user_id === user?.id && canEditForms);
+
+      if (!canEdit) {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para editar este formulário",
+          variant: "destructive",
+        });
+        navigate('/forms');
+        return;
+      }
+
+      setFormOwnerId(form.user_id);
 
       // Load sections
       const { data: sectionsData, error: sectionsError } = await supabase
@@ -217,6 +234,29 @@ export const useFormBuilder = (isEditing = false) => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Verificar permissões
+    if (isEditing) {
+      const canEdit = isMasterAdmin || 
+                     (formOwnerId === user.id && canEditForms);
+      if (!canEdit) {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para editar este formulário",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      if (!canCreateForms) {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para criar formulários",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const totalQuestions = sections.reduce((count, section) => count + section.questions.length, 0);

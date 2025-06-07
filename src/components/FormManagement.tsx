@@ -45,7 +45,7 @@ const FormManagement = () => {
   const [loading, setLoading] = useState(true);
   const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
   const [selectedFormForPermissions, setSelectedFormForPermissions] = useState<Form | null>(null);
-  const { user, isMasterAdmin } = useAuth();
+  const { user, isMasterAdmin, isAdmin, canCreateForms, canEditForms, canDeleteForms } = useAuth();
 
   useEffect(() => {
     loadForms();
@@ -53,10 +53,14 @@ const FormManagement = () => {
 
   const loadForms = async () => {
     try {
-      const { data: formsData, error } = await supabase
-        .from('forms')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let query = supabase.from('forms').select('*');
+      
+      // Se não for master admin nem admin, carregar apenas formulários próprios
+      if (!isMasterAdmin && !isAdmin) {
+        query = query.eq('user_id', user?.id);
+      }
+      
+      const { data: formsData, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -206,7 +210,11 @@ src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="
   };
 
   const canEdit = (form: Form) => {
-    return isMasterAdmin || form.user_id === user?.id;
+    return isMasterAdmin || (form.user_id === user?.id && canEditForms);
+  };
+
+  const canDelete = (form: Form) => {
+    return isMasterAdmin || (form.user_id === user?.id && canDeleteForms);
   };
 
   const canManagePermissions = (form: Form) => {
@@ -231,21 +239,25 @@ src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            {isMasterAdmin ? 'Todos os Formulários' : 'Meus Formulários'}
+            {isMasterAdmin || isAdmin ? 'Formulários' : 'Meus Formulários'}
           </h1>
           <p className="text-slate-600">
             {isMasterAdmin 
               ? 'Visualização completa de todos os formulários do sistema'
+              : isAdmin
+              ? 'Visualização de formulários como administrador'
               : 'Gerenciamento dos seus formulários e coleta de respostas'
             }
           </p>
         </div>
-        <Button asChild>
-          <Link to="/forms/new">
-            <FileText className="mr-2 h-4 w-4" />
-            Criar Novo Formulário
-          </Link>
-        </Button>
+        {canCreateForms && (
+          <Button asChild>
+            <Link to="/forms/new">
+              <FileText className="mr-2 h-4 w-4" />
+              Criar Novo Formulário
+            </Link>
+          </Button>
+        )}
       </div>
 
       {forms.length === 0 ? (
@@ -253,14 +265,18 @@ src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="
           <FileText className="h-12 w-12 mx-auto text-slate-400 mb-4" />
           <h3 className="text-xl font-semibold text-slate-700 mb-2">Nenhum formulário encontrado</h3>
           <p className="text-slate-600 mb-6">
-            {isMasterAdmin 
+            {isMasterAdmin || isAdmin
               ? 'Ainda não há formulários criados no sistema.'
-              : 'Você ainda não criou nenhum formulário. Crie seu primeiro formulário agora.'
+              : canCreateForms
+              ? 'Você ainda não criou nenhum formulário. Crie seu primeiro formulário agora.'
+              : 'Você não tem permissão para criar formulários ou ainda não há formulários disponíveis.'
             }
           </p>
-          <Button asChild>
-            <Link to="/forms/new">Criar Novo Formulário</Link>
-          </Button>
+          {canCreateForms && (
+            <Button asChild>
+              <Link to="/forms/new">Criar Novo Formulário</Link>
+            </Button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg border shadow-sm">
@@ -281,7 +297,7 @@ src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="
                 <TableRow key={form.id}>
                   <TableCell className="font-medium">{form.title}</TableCell>
                   <TableCell className="text-sm text-gray-600">
-                    {isMasterAdmin ? (
+                    {isMasterAdmin || isAdmin ? (
                       form.user_id === user?.id ? 'Você' : 'Outro usuário'
                     ) : (
                       'Você'
@@ -437,7 +453,7 @@ src="${shareUrl}?with_logo=${withLogo}" frameborder="0" loading="lazy" sandbox="
                           </div>
                         </SheetContent>
                       </Sheet>
-                      {canEdit(form) && (
+                      {canDelete(form) && (
                         <Button
                           variant="outline"
                           size="sm"

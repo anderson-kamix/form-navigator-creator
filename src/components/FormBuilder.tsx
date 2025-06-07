@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import FormHeader from './form-builder/FormHeader';
@@ -7,9 +7,11 @@ import FormCoverComponent from './form-builder/FormCover';
 import FormSectionComponent from './form-builder/FormSectionComponent';
 import { useFormBuilder } from '@/hooks/useFormBuilder';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 const FormBuilder = () => {
   const navigate = useNavigate();
+  const { canCreateForms } = useAuth();
   const {
     formTitle,
     setFormTitle,
@@ -28,6 +30,13 @@ const FormBuilder = () => {
     saveForm
   } = useFormBuilder();
 
+  // Verificar permissões ao carregar o componente
+  useEffect(() => {
+    if (!canCreateForms) {
+      navigate('/forms');
+    }
+  }, [canCreateForms, navigate]);
+
   const handleSaveForm = async () => {
     console.log('Botão salvar clicado');
     const result = await saveForm();
@@ -36,6 +45,11 @@ const FormBuilder = () => {
       navigate('/forms');
     }
   };
+
+  // Se não tem permissão, não renderizar nada (será redirecionado)
+  if (!canCreateForms) {
+    return null;
+  }
 
   return (
     <div className="p-8">
