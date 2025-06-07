@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -65,7 +64,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
     setLoading(true);
 
     try {
-      console.log('Atualizando usuário...');
+      console.log('Iniciando atualização do usuário...');
 
       // Atualizar email e/ou senha se foi alterado (apenas Master Admins)
       if (isMasterAdmin && (formData.email !== user.email || formData.password.trim())) {
@@ -80,13 +79,20 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
         
         if (formData.email !== user.email) {
           updateData.email = formData.email;
+          console.log('Email será atualizado para:', formData.email);
         }
         
         if (formData.password.trim()) {
           updateData.password = formData.password;
+          console.log('Senha será atualizada');
         }
 
-        const response = await fetch('/functions/v1/update-user-password', {
+        console.log('Dados para atualização:', { userId: updateData.userId, hasEmail: !!updateData.email, hasPassword: !!updateData.password });
+
+        const functionUrl = `https://iosxhlvszjltgifapjag.supabase.co/functions/v1/update-user-password`;
+        console.log('Chamando URL:', functionUrl);
+
+        const response = await fetch(functionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -95,10 +101,32 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
           body: JSON.stringify(updateData),
         });
 
-        const result = await response.json();
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+        let result;
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+
+        if (!responseText) {
+          throw new Error('Resposta vazia da função');
+        }
+
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Erro ao fazer parse da resposta:', parseError);
+          throw new Error(`Resposta inválida da função: ${responseText}`);
+        }
+
+        console.log('Result parsed:', result);
 
         if (!response.ok) {
-          throw new Error(result.error || 'Erro ao atualizar credenciais');
+          throw new Error(result.error || `Erro HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        if (result.error) {
+          throw new Error(result.error);
         }
 
         console.log('Credenciais atualizadas com sucesso');
@@ -140,7 +168,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ open, onClose, user, onSu
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Erro inesperado:', error);
+      console.error('Erro ao atualizar usuário:', error);
       toast({
         title: "Erro",
         description: error instanceof Error ? error.message : "Ocorreu um erro inesperado ao atualizar o usuário",
